@@ -6,6 +6,9 @@
 * As the name suggests, the PhysicsVector class is used to hold a vector (the mathematical object of a number with direction) and various functions to manipulate it.
 * Using the name PhysicsVector rather than Vector to try reduce confusion with the std::vector object included as part of the C++ standard library and used for dynamically sized arrays.
 * This class should work for vectors of any dimension, but has more focus on 2D and 3D vectors since they are the overwhelming majority of use cases (plus after dimension 4 there isn't easy letter representation).
+* 
+* The core part of optimisation for 2D and 3D vectors is the PVData subclass - this uses template specialisations to ensure that in the case of 2D and 3D vectors, the data is stored on the stack rather than on the heap,
+* meaning that there is no need for a costly retrieval from the heap. In all other dimensions except these specific use-cases, the data is stored on a vector so the components live on the heap.
 *
 * As several vector functions are mathematical nonsense when applied to vectors of differing sizes, this object is templated with each new object being a vector of a particular size.
 * This gives compiler-level enforcement of such mathematical rules, with the only clear downside being that it is harder to resize a vector.
@@ -29,39 +32,336 @@ namespace Physics{
 	{
 	private:
 
+		//--------------PVDATA DATA CONTAINER MEMBER DEFINITIONS--------------------------
+		//PhysicsVector functions resume on line 350
+
+		/*
+		* As above, for optimisation reasons we store our member components inside the PVData class. This class has specialisations for 2 and 3 dimensions which store the member data on the stack rather than on the heap.
+		* This provides a notable performance boost for the most common use-cases with the only key downside being that we can't internally use iterator-based arithmetic in the PhysicsVector class as these specialisations
+		* do not provide iterator functionality.
+		*/
+
+		/*
+		* Our general case - this version accounts for all dimensions, except for 2- and 3-dimensional Vectors. This uses a std::vector to store the components of the greater Vector object.
+		*/
+		template<std::size_t dim>
+		class PVData final {
+		private:
+			//NB: m_components[0] -> X, m_components[1] -> Y, etc
+			std::vector<double> m_components;
+
+			//There are a handful of cases where a the m_components array may be a size mismatch with the amount of dimensions the vector is meant to be. Initialiser list construction for example.
+			//There are several solutions to this, such as asserts and exception throwing. However in my opinion those are runtime solutions to what should be a compile-time problem.
+			//Instead this function will be triggered every time there is a possibility of a mismatch and will either trim the vector down to size or pad it with 0s until it matches.
+			//Kept private as this should only be used to solve internal problems - it should be impossible to get a mismatched vector size externally.
+			void matchVectorSize() {
+				//In the case where we have too many entries we cut the vector down
+				if (m_components.size() > dim) {
+					for (std::size_t i = m_components.size(); i > dim; --i) {
+						m_components.pop_back();
+					}
+				}
+				//And in the case we have too few, we pad it with 0s.
+				else if (m_components.size() < dim) {
+					for (std::size_t i = m_components.size(); i < dim; ++i) {
+						m_components.push_back(0);
+					}
+				}
+			}
+
+		public:
+
+			//Declare our outer PhysicsVector class so it can access the members here. Most notably during inner product calculation.
+			//In general use however we try where possible to use the interface provided by this class, even with PhysicsVector.
+			template<std::size_t vectorSize>
+			friend class PhysicsVector;
+
+			//Default constructor to fill the array with zeroes.
+			PVData() {
+				m_components.reserve(dim);
+				for (std::size_t i = 0; i < dim; ++i) {
+					m_components.push_back(0);
+				}
+			}
+
+			//Copy constructor
+			PVData(const PVData<dim>& inData) {
+				m_components = inData.m_components;
+				if (m_components.size() != dim)this->matchVectorSize();
+			}
+
+			//Move constructor
+			PVData(const PVData<dim>&& inData) noexcept {
+				m_components = std::move(inData.m_components);
+				if (m_components.size() != dim) this->matchVectorSize;
+			}
+
+			//Initialiser list construction
+			PVData(const std::initializer_list<double>& inList) {
+				m_components.reserve(dim);
+				for (double d : inList) {
+					m_components.push_back(d);
+				}
+				if (inList.size() != dim)this->matchVectorSize();   //As it is possible for the initialiser list to be a different size from the vector we are creating, we use this.
+			}
+
+			//Boilerplate getters and setters.
+			double at(const std::size_t inIndex) const {
+				return m_components.at(inIndex);
+			}
+
+			//Constant operator[] which returns by value and does not modify
+			double operator[](const std::size_t inIndex) const {
+				return m_components[inIndex];
+			}
+			
+			//Non-const which returns by reference and can modify.
+			double& operator[](const std::size_t inIndex) {
+				return m_components[inIndex];
+			}
+			
+			void setAt(const std::size_t inIndex, const double inValue) {
+				if (inIndex > dim - 1)throw std::out_of_range("Attempt to set value out of range of vector");	//dim-1 because of the zero-indexing of the vector vs dimension numbering starting at 1.
+				m_components[inIndex] = inValue;
+			}
+
+			std::size_t size() const {
+				return dim;
+			}
+
+			//Copy- and move-assignment operators.
+			PVData<dim>& operator=(const PVData<dim>& inData) {
+				m_components = inData.m_components;
+				if (m_components.size() != dim)this->matchVectorSize();
+				return *this;
+			}
+
+			PVData<dim>& operator=(const PVData<dim>&& inData) noexcept {
+				m_components = inData.m_components;
+				if (m_components.size() != dim)this->matchVectorSize();
+				return *this;
+
+			}
+
+
+		};
+		/*
+		* The special case for 3-dimensions. As this is the most common use-case, we provide some optimisation by instead storing the three vector components on the stack.
+		* On the author's machine, this actually reduces the stack size occupied by the data, so is a worthwhile optimisation which does not overpopulate the stack.
+		*/
+		template<>
+		class PVData<3> final {
+		private:
+			double m_X;
+			double m_Y;
+			double m_Z;
+
+		public:
+			//Default constructor to zero-initialise the components.
+			PVData() : m_X{ 0 }, m_Y{ 0 }, m_Z{ 0 } {};
+
+			//Copy construction
+			PVData(const PVData<3>& inData) : m_X{ inData.m_X }, m_Y{ inData.m_Y }, m_Z{ inData.m_Z } {}
+
+			//Move construction. While this is meaningless for double member data, we must provide an implementation to preserve the interface.
+			PVData(const PVData<3>&& inData) noexcept : m_X{ inData.m_X }, m_Y{ inData.m_Y }, m_Z{ inData.m_Z } {}
+
+			//Initialiser list construction
+			//This implementation differs from the case where we use a vector to store components in that initialiser lists which contain too many elements are no problem - we only pick the first three.
+			//Initialiser lists which contain too few elements will have the rest set to 0.
+			PVData(const std::initializer_list<double>& inList) {
+				if (inList.size() < 3) {
+					m_X = 0;
+					m_Y = 0;
+					m_Z = 0;
+				}
+				std::vector<double> temp;                       //As initialiser_list has no indexing, we need to copy it to a container which does to access the first three elements.
+				for (double d : inList) {
+					temp.push_back(d);
+				}
+				for (std::size_t i = 0; i < ((temp.size() > 3) ? 3 : temp.size()); ++i) {
+					this->setAt(i, temp[i]);
+				}
+			}
+
+			//Accessor with "bounds checking" (so far as this implementation allows)
+			double at(const std::size_t inIndex) const {
+				switch (inIndex) {
+				case 0:
+					return m_X;
+				case 1:
+					return m_Y;
+				case 2:
+					return m_Z;
+				default:
+					throw std::out_of_range("Error: Attempting to access value at a higher dimension than this PhysicsVector contains.");
+				}
+			}
+
+			//Accessor without "bounds checking" and can modify
+			double& operator[](const std::size_t inIndex) {
+				switch (inIndex) {
+				case 0:
+					return m_X;
+				case 1:
+					return m_Y;
+				default:                    //As we are returning a reference type, we need to return a variable which exists. So we choose to let all incorrect indices return m_Z.
+					return m_Z;
+
+				}
+			}
+
+			//Accessor without "bounds checking" which preseves const-ness
+			double operator[](const std::size_t inIndex) const {
+				switch (inIndex) {
+				case 0:
+					return m_X;
+				case 1:
+					return m_Y;
+				case 2:                    
+					return m_Z;
+				default:
+					return 0;			//We must return something so we return 0 for a failed attempt.
+
+				}
+			}
+
+			//Setter with "bounds checking" - since operator[] returns a reference, that should be used for non-bounds-checking sets.
+			void setAt(const std::size_t inIndex, const double inValue) {
+				if (inIndex > 3) throw std::out_of_range("Attempt to set value out of range of vector");
+				(*this)[inIndex] = inValue;
+			}
+
+			std::size_t size() const {
+				return 3;
+			}
+
+			//Copy- and move- assignment. Again move assignment is meaningless in this case but we must preserve the interface used for cases where it isn't.
+			PVData<3>& operator=(const PVData<3>& inData) {
+				m_X = inData.m_X;
+				m_Y = inData.m_Y;
+				m_Z = inData.m_Z;
+				return *this;
+			}
+
+			PVData<3>& operator=(const PVData<3>&& inData) noexcept {
+				m_X = inData.m_X;
+				m_Y = inData.m_Y;
+				m_Z = inData.m_Z;
+				return *this;
+			}
+
+
+		};
+
+		/*
+		* The special case for 2-dimensional Vectors. As this is the second most likely use-case, we do the same stack-based optimisation to reduce costly retrievals from the heap.
+		* Most of the functions here will heavily mirror that of a 3-dimensional PVData object.
+		*/
+		template<>
+		class PVData<2> final {
+		private:
+			double m_X;
+			double m_Y;
+
+		public:
+			PVData() :m_X{ 0 }, m_Y{ 0 }{};
+
+			//Copy construction
+			PVData(const PVData<2>& inData) : m_X{ inData.m_X }, m_Y{ inData.m_Y } {}
+
+			//Move construction. As with 3D it's meaningless for double member data but we must keep the interface consistent.
+			PVData(const PVData<2>&& inData) : m_X{ inData.m_X }, m_Y{ inData.m_Y } {}
+
+			//Initialiser list construction
+			//Again we ignore issues of a list which is too long and throw exceptions for a shorter list.
+			PVData(const std::initializer_list<double>& inList) : m_X{ 0 }, m_Y{ 0 } {
+				std::vector<double> temp;                       //As initialiser_list has no indexing, we need to copy it to a container which does to access the first three elements.
+				for (double d : inList) {
+					temp.push_back(d);
+				}
+				//The statement in the middle here accounts for cases where the initialiser list is longer than the vector can hold.
+				for (std::size_t i = 0; i < ((temp.size() > 2) ? 2 : temp.size()); ++i) {
+					this->setAt(i, temp[i]);
+				}
+			}
+
+			//Accessor with "bounds checking" (so far as this implementation allows)
+			double at(const std::size_t inIndex) const {
+				switch (inIndex) {
+				case 0:
+					return m_X;
+				case 1:
+					return m_Y;
+				default:
+					throw std::out_of_range("Error: Attempting to access value at a higher dimension than this PhysicsVector contains.");
+				}
+			}
+
+			//Accessor without "bounds checking" that can modify
+			double& operator[](const std::size_t inIndex) {
+				switch (inIndex) {
+				case 0:
+					return m_X;
+				default:
+					return m_Y;             //Again we make the call to have invalud indices return the Y component.
+				}
+			}
+
+			//Accessor without "bounds checking" that cannot modify
+			double operator[](const std::size_t inIndex) const {
+				switch (inIndex) {
+				case 0:
+					return m_X;
+				case 1:
+					return m_Y;
+				default:
+					return 0;
+				}
+			}
+			//Setter with "bounds checking" - since operator[] returns a reference, that should be used for non-bounds-checking sets.
+			void setAt(const std::size_t inIndex, const double inValue) {
+				if (inIndex > 2) throw std::out_of_range("Attempt to set value out of range of vector");
+				(*this)[inIndex] = inValue;
+			}
+
+			std::size_t size() const {
+				return 2;
+			}
+
+			//Copy- and move- assignment
+			PVData<2>& operator=(const PVData<2>& inData) {
+				m_X = inData.m_X;
+				m_Y = inData.m_Y;
+				return *this;
+			}
+
+			PVData<2>& operator=(const PVData<2>&& inData) {
+				m_X = inData.m_X;
+				m_Y = inData.m_Y;
+				return *this;
+			}
+
+
+		};
+
+
+
+		//----------------PHYSICSVECTOR FUNCTIONS--------------------------
+
 		//Only one key set of internal data - the list of components.
-		//The class is structured such that m_components[0] -> X, m_components[1] -> Y, etc.
-		//The vector itself is kept private to prevent it being resized. The elements themselves have public accessors.
-		std::vector<double> m_components{};		//The components of the vector.
+		//This is kept private to prevent external and unexpected meddling, and to preserve the interface between the implementation (and its templated specialisations) and the user of this class.
+		PVData<dim> m_components{};		//The components of the vector.
 
 		//Printing uses this virtual function which is called by operator<<. This allows any derived classes to easily print differently.
 		//This function is intended to only be called internally so is kept private.
 		virtual std::ostream& print(std::ostream& out) const {
 			out << "(";
-			for (double d : m_components) {
-				out << d << ",";
+			for (std::size_t i = 0; i<dim;++i) {
+				out << m_components[i] << ",";
 			}
 			out << '\b' << ")";
 			return out;
-		}
-
-		//There are a handful of cases where a the m_components array may be a size mismatch with the amount of dimensions the vector is meant to be. Initialiser list construction for example.
-		//There are several solutions to this, such as asserts and exception throwing. However in my opinion those are runtime solutions to what should be a compile-time problem.
-		//Instead this function will be triggered every time there is a possibility of a mismatch and will either trim the vector down to size or pad it with 0s until it matches.
-		//Kept private as this should only be used to solve internal problems - it should be impossible to get a mismatched vector size externally.
-		void matchVectorSize() {
-			//In the case where we have too many entries we cut the vector down
-			if (m_components.size() > dim) {
-				for (unsigned int i = m_components.size(); i > dim; --i) {	//Unsigned int in this case as both comparison values are of unsigned type size_t
-					m_components.pop_back();
-				}
-			}
-			//And in the case we have too few, we pad it with 0s.
-			else if (m_components.size() < dim) {
-				for (unsigned int i = m_components.size(); i < dim; ++i) {
-					m_components.push_back(0);
-				}
-			}
 		}
 
 
@@ -69,29 +369,20 @@ namespace Physics{
 		/*
 		* Constructors.
 		*/
-		PhysicsVector() {
-			for (int i = 0; i < dim; ++i) {	//Fully initialise our components array to prevent potential out-of-bounds errors which may come from trying to set an uninitialised (but otherwise valid) component.
-				m_components.push_back(0);
-			}
-		}
-		//Copy-constructor to clone another PhysicsVector
-		PhysicsVector(const PhysicsVector<dim>& inVector) {
-			for (double d : inVector.m_components) {
-				m_components.push_back(d);
-			}
-		}
+		//Default constructor. Note that the default constructor for PVData will zero-initialise all component values.
+		PhysicsVector() {}
+		
+		//Copy-constructor to clone another PhysicsVector.
+		PhysicsVector(const PhysicsVector<dim>& inVector) : m_components{ inVector.m_components } {}
+
 		//Move constructor
 		PhysicsVector(PhysicsVector<dim>&& inVector) noexcept {
 			m_components = std::move(inVector.m_components);
 		}
+
 		//Initialiser list constructor.
-		//We need to enforce that the initialiser list has the same number of elements as the vector it's trying to create.
-		PhysicsVector(const std::initializer_list<double>& inList) {
-			for (double d : inList) {
-				m_components.push_back(d);
-			}
-			if (inList.size() != dim)this->matchVectorSize();
-		}
+		//PVData should enforce that the list has the correct number of elements, so we call its initialiser list constructor.
+		PhysicsVector(const std::initializer_list<double>& inList) : m_components{ inList } {}
 
 		//Virtual default destructor.
 		virtual ~PhysicsVector() = default;
@@ -107,11 +398,11 @@ namespace Physics{
 		*/
 
 		//Get a general entry. We use vector::at() as it will throw an exception in the event of an attempt to access out of range entries.
-		double getAt(int inEntry) const {
+		double getAt(const std::size_t inEntry) const {
 			return m_components.at(inEntry);
 		}
 		//Alias to mirror the underlying std::vector object.
-		double at(int inEntry)const {
+		double at(const std::size_t inEntry)const {
 			return getAt(inEntry);
 		}
 		//And accessors for named dimensions.
@@ -129,17 +420,16 @@ namespace Physics{
 		}
 
 		//A general setter. This will throw an exception if you attempt to set a value outside the range of the vector.
-		void setAt(int indexIn, double valueIn) {
-			if (indexIn > dim - 1)throw std::out_of_range("Attempt to set value out of range of vector");	//dim-1 because of the zero-indexing of the vector vs dimension numbering starting at 1.
-			m_components[indexIn] = valueIn;
+		void setAt(const std::size_t inIndex, const double inValue) {
+			m_components.setAt(inIndex, inValue);
 		}
-		void setX(double XIn) {
+		void setX(const double XIn) {
 			setAt(0, XIn);
 		}
-		void setY(double YIn) {
+		void setY(const double YIn) {
 			setAt(1, YIn);
 		}
-		void setZ(double ZIn) {
+		void setZ(const double ZIn) {
 			setAt(2, ZIn);
 		}
 
@@ -164,9 +454,9 @@ namespace Physics{
 		//NB: Unary -, not subtraction. Also our first return-by-value. Because simply evauluating -X doesn't change the value of X.
 		PhysicsVector<dim> operator-() const {
 			PhysicsVector<dim> outVector{ *this };
-			for (double& d : outVector.m_components) {										//Use references in this loop as we want to actually change the values of the doubles.
-				if (d != 0) {																//If clause to prevent 0 -> -0, since -0 makes no sense.
-					d *= -1;																//Don't otherwise need to account for near-zero approximations. epsilon -> -epsilon is expected.
+			for (std::size_t i = 0; i < dim; ++i) {										//Use references in this loop as we want to actually change the values of the doubles.
+				if (outVector.m_components[i] != 0) {									//If clause to prevent 0 -> -0, since -0 makes no sense.
+					outVector.m_components[i] *= -1;									//Don't otherwise need to account for near-zero approximations. epsilon -> -epsilon is expected.
 				}
 			}
 			return outVector;
@@ -188,8 +478,12 @@ namespace Physics{
 			return outVector;
 		}
 		//Operator[] to round out accessing the data. Mirroring the std::vector, operator[] does no bounds checking.
-		double operator[](const int index) const {
+		double& operator[](const std::size_t index) {
 			return m_components[index];
+		}
+		//Operator[] with const-ness.
+		double operator[](const std::size_t inIndex) const {
+			return m_components[inIndex];
 		}
 		//As above, operator<< calls the print() function.
 		friend std::ostream& operator<<(std::ostream& out, const PhysicsVector<dim>& inVector) {
@@ -197,31 +491,25 @@ namespace Physics{
 		}
 		//Copy Assignment.
 		PhysicsVector<dim>& operator=(const PhysicsVector<dim>& inVector) {
-			if (this == &inVector)return *this;											//Check for self-assignment and return early in that case.
-			m_components.clear();														//Clear our current vector...		
-			for (int i = 0; i < dim; ++i) {
-				m_components.push_back(inVector.m_components[i]);						//...And assign it all the values of the inVector.
-			}
-			if (m_components.size() != dim)this->matchVectorSize();						//Ensure size matching.
-
-			return *this;																//Explicitly return *this so operation can be chained if needed.
+			if (this == &inVector)return *this;													//Check for self-assignment and return early in that case.
+			m_components = inVector.m_components;												//Otherwise copy the components			
+			return *this;																		//Explicitly return *this so operation can be chained if needed.
 		}
 		//Move assignment.
 		PhysicsVector<dim>& operator=(PhysicsVector<dim>&& inVector) noexcept {
-			if (this == &inVector)return *this;											//Check for self-assignment
-			m_components = std::move(inVector.m_components);							//Move-assign our vector
-			if (m_components.size() != dim)this->matchVectorSize();						//And ensure size-matching.
+			if (this == &inVector)return *this;													//Check for self-assignment
+			m_components = std::move(inVector.m_components);									//Move-assign our components.
 			return *this;
 		}
 		PhysicsVector<dim>& operator+=(const PhysicsVector<dim>& inVector) {
-			for (int i = 0; i < dim; ++i) {
+			for (std::size_t i = 0; i < dim; ++i) {
 				m_components[i] += inVector.m_components[i];
 			}
 			return *this;
 		}
 		//As with binary subtraction, the -= operator is almost identical to its addition counterpart.
 		PhysicsVector<dim>& operator-=(const PhysicsVector& inVector) {
-			for (int i = 0; i < dim; ++i) {
+			for (std::size_t i = 0; i < dim; ++i) {
 				m_components[i] -= inVector.m_components[i];
 			}
 			return *this;
@@ -229,13 +517,13 @@ namespace Physics{
 
 		/*
 		* Vector calculus functions.
-		* These are what separates the PhysicsVector object from just being a generic wrapper around an array of numbers.
+		* These are what separates the PhysicsVector object from just being a generic wrapper around a container of numbers.
 		*/
 		//First the length squared - kept in a separate function to prevent unnecessary square rooting and then squaring back up again.
 		double lengthSquared() const {
 			double outValue{ 0.0 };
-			for (double d : m_components) {
-				outValue += pow(d, 2);
+			for (std::size_t i = 0; i < dim; ++i) {
+				outValue += pow(m_components[i], 2);
 			}
 			return outValue;
 		}
@@ -249,13 +537,25 @@ namespace Physics{
 		}
 		//The inner product, or specifically the dot product for this kind of vector space. Fortunately the standard library already includes this functionality.
 		double innerProduct(const PhysicsVector<dim>& inVector) const {
-			return static_cast<double>(std::inner_product(m_components.begin(), m_components.end(), inVector.m_components.begin(), 0.0));	//Static cast potentially unnecessary as it should match type 0.0.
+			//If our underlying data is stored in a STL container with iterator support (all dimensions except 2 and 3)
+			if constexpr (dim > 3 || dim == 1) {
+				//Static cast potentially unnecessary as it should match type 0.0.
+				return static_cast<double>(std::inner_product(m_components.m_components.begin(), m_components.m_components.end(), inVector.m_components.m_components.begin(), 0.0));	
+			}
+			//Otherwise we have to grind it out manually.
+			else {
+				double product{ 0 };
+				for (std::size_t i = 0; i < dim; ++i) {
+					product += m_components[i] * inVector.m_components[i];
+				}
+				return product;
+			}
 		}
 		//The vector product. Again, this one has to return by value since an evaluation of (A x B) doesn't change the value of A or B.
 		//Unfortunately, the vector product is only well-defined for 3-dimensional vectors, though a version does exist for seven dimensions.
 		PhysicsVector<dim> vectorProduct(const PhysicsVector<dim>& inVector) const {
-			if (dim != 3 && dim != 7) throw std::logic_error("Vector Product only defined for 3- and 7- dimensional vectors.");
-			if (dim == 3) {																								//Because this can't be generalised to any dimensions, have to just compute the specific cases.
+			if constexpr (dim != 3 && dim != 7) throw std::logic_error("Error: Vector Product only defined for 3- and 7- dimensional vectors.");
+			else if constexpr (dim == 3) {																									//Because this can't be generalised to n dimensions, have to just compute the specific cases.
 				double newX{ (this->m_components[1] * inVector.m_components[2]) - (this->m_components[2] * inVector.m_components[1]) };
 				double newY{ (this->m_components[2] * inVector.m_components[0]) - (this->m_components[0] * inVector.m_components[2]) };		//Note the negative sign is factored in, i.e. -(a1b3-a3b1) = (a3b1-a1b3)
 				double newZ{ (this->m_components[0] * inVector.m_components[1]) - (this->m_components[1] * inVector.m_components[0]) };
@@ -296,8 +596,8 @@ namespace Physics{
 		}
 		//A function to scale a vector in place.
 		PhysicsVector<dim>& scaleVector(const double inValue) {
-			for (double& d : m_components) {
-				d *= inValue;
+			for (std::size_t i = 0; i < dim; ++i) {
+				m_components[i] *= inValue;
 			}
 			return *this;
 		}
@@ -327,6 +627,14 @@ namespace Physics{
 		static PhysicsVector<dim> vectorProduct(const PhysicsVector<dim>& inVector1, const PhysicsVector<dim>& inVector2) {
 			return inVector1.vectorProduct(inVector2);
 		}
+
+
+
+
+	
+
+
+
 	};
 
 }
