@@ -11,7 +11,7 @@ This code is built in C++17 and requires at least that standard to compile.
 
 This section will document a brief overview of each part of the library and what it contains.
 
-- **PhysicsVector** - A size-templated class to serve as a base vector object for physics simulations.
+- **PhysicsVector** - A size-templated class to serve as a base vector object for physics simulations, with some optimisation targeting 2D and 3D vectors.
 
 - **ConfigReader** - A class to read configuration files and copy the valued contained within into the program at runtime.
 
