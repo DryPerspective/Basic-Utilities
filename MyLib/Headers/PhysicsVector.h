@@ -33,7 +33,7 @@ namespace Physics{
 	private:
 
 		//--------------PVDATA DATA CONTAINER MEMBER DEFINITIONS--------------------------
-		//PhysicsVector functions resume on line 350
+		//PhysicsVector functions resume on line 286
 
 		/*
 		* As above, for optimisation reasons we store our member components inside the PVData class. This class has specialisations for 2 and 3 dimensions which store the member data on the stack rather than on the heap.
@@ -348,10 +348,12 @@ namespace Physics{
 
 
 		//----------------PHYSICSVECTOR FUNCTIONS--------------------------
-
+		 
 		//Only one key set of internal data - the list of components.
-		//This is kept private to prevent external and unexpected meddling, and to preserve the interface between the implementation (and its templated specialisations) and the user of this class.
+		//This is kept protected for two reasons - it is not public because we don't want external meddling with this to attempt to transform the vector components directly (particularly for the n-dimensional case
+		//where the std::vector of components could be resized to mismatch with the size of the PhysicsVector it represents. Secondly it maintains the interface between data and functionality.
 		PVData<dim> m_components{};		//The components of the vector.
+
 
 		//Printing uses this virtual function which is called by operator<<. This allows any derived classes to easily print differently.
 		//This function is intended to only be called internally so is kept private.
@@ -363,6 +365,9 @@ namespace Physics{
 			out << '\b' << ")";
 			return out;
 		}
+
+
+
 
 
 	public:
@@ -605,14 +610,7 @@ namespace Physics{
 		PhysicsVector<dim> scaledBy(const double inValue) const {
 			PhysicsVector<dim> newVector{ *this };
 			return newVector.scaleVector(inValue);
-		}
-		PhysicsVector<dim> scaledByVector(PhysicsVector<dim> inVector) {
-			PhysicsVector<dim> output;
-			for (int i = 0; i < dim; ++i) {
-				output.m_components[i] = this->m_components[i] * inVector.m_components[i];
-			}
-			return output;
-		}
+		} 
 		//Get the unit vector equivalent of a particular vector, given by V/|V|
 		PhysicsVector<dim> getUnitVector() const {
 			if (this->magnitude() <= std::numeric_limits<double>::epsilon()) return PhysicsVector<dim>();	//Solve the problem of dividing by zero. NB: Default constructor will return a correctly sized vector filled with 0.
