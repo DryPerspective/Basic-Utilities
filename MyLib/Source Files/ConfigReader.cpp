@@ -10,7 +10,7 @@ namespace IO {
 		m_values.clear();
 	}
 
-	void ConfigReader::addFile(const std::string_view fileName, bool removeWS) {
+	void ConfigReader::addFile(const std::string_view fileName) {
 		addFileToMap(fileName);
 	}
 
@@ -23,6 +23,12 @@ namespace IO {
 
 	void ConfigReader::addFileToMap(const std::string_view fileName) {
 		std::ifstream file(std::string(fileName).c_str());
+		if (file.fail()) {
+			std::string errMsg{ "Error: File " };
+			errMsg += fileName;
+			errMsg += " could not be opened.";
+			throw ConfigReader::ConfigException(errMsg);
+		}
 		std::string currentLine;
 		while (std::getline(file, currentLine)) {
 			//Remove WS if needed.

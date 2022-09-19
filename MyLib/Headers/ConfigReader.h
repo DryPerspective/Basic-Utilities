@@ -144,7 +144,7 @@ namespace IO {
 		//We only want construction when we have a specific file to open and read.
 		ConfigReader(const std::string_view fileName, bool removeWS = true, bool setLowerCase = false);
 
-		//We want out destructor virtual in case of inheritance, but we will also handle closing the file here.
+		//We want our destructor virtual in case of inheritance.
 		virtual ~ConfigReader() = default;
 
 		//Free up memory from the map for cases where we are done with the ConfigReader but it remains in scope
@@ -152,25 +152,27 @@ namespace IO {
 
 
 		//Read an additional file and insert its data into the map.
-		void addFile(const std::string_view fileName, bool removeWS = true);		
+		void addFile(const std::string_view fileName);		
 
 
 		//This is the core function. It it the one-size-fits-all function to match a string which was in the file to some variable within the program.
 		//It has support for numeric types, strings, and PhysicsVector objects. As we're ostensibly reading from strings, exotic custom types can be read
 		//by returning the string and processing it in the main project file.
+		//We return a reference to the variable being fed in so that this function can be chained if needed.
 		template <typename T>
-		void readValue(std::string varNameInFile, T& inVariable) const {
+		T& readValue(std::string varNameInFile, T& inVariable) const {
 			if (m_lower)toLower(varNameInFile);
 			std::string valueInMap;
 			try {
 				valueInMap = m_values.at(varNameInFile);
 			}
-			catch (std::out_of_range e) {
+			catch (const std::out_of_range& e) {
 				std::string errMsg{ "Error: Attempting to match value " };
 				errMsg += varNameInFile;
 				errMsg += " however this does not appear in the config file.";
 				throw ConfigReader::ConfigException(errMsg);
 			}
+
 
 			//Different types handle differently. Char comes first as it would also be caught in is_arithmetic
 			if constexpr (std::is_same<T, char>::value) {
@@ -184,6 +186,7 @@ namespace IO {
 			else if constexpr (std::is_arithmetic_v<T>) {
 				inVariable = readNumerical<T>(valueInMap);
 			}
+			//PhysicsVector types
 			else if constexpr (Physics::is_PhysicsVector<T>::value) {
 				readVector(valueInMap, inVariable);
 			}
@@ -192,10 +195,8 @@ namespace IO {
 				if (valueInMap.length() > strlen(inVariable)) throw ConfigReader::ConfigException("Error: Attempting to match variable in file to a C-string which is too short to contain it");
 				else strcpy_s(inVariable, valueInMap.c_str());
 			}
-
-
-			else throw ConfigReader::ConfigException("Error - readValue only supports numerical types, C-strings, and std::string");
-
+			else throw ConfigReader::ConfigException("Error - readValue only supports numerical types, C-strings, PhysicsVector, and std::string");
+			return inVariable;
 		}
 
 
