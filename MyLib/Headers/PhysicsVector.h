@@ -354,7 +354,6 @@ namespace Physics{
 		//where the std::vector of components could be resized to mismatch with the size of the PhysicsVector it represents. Secondly it maintains the interface between data and functionality.
 		PVData<dim> m_components{};		//The components of the vector.
 
-
 		//Printing uses this virtual function which is called by operator<<. This allows any derived classes to easily print differently.
 		//This function is intended to only be called internally so is kept private.
 		virtual std::ostream& print(std::ostream& out) const {
@@ -635,6 +634,14 @@ namespace Physics{
 
 	};
 
+	/*
+	* A pair of templated structs to easily determine if a templated type is a PhysicsVector without confining its dimension
+	*/
+	template <class T>
+	struct is_PhysicsVector : std::false_type {};
+
+	template <std::size_t N>
+	struct is_PhysicsVector<Physics::PhysicsVector<N>> : std::true_type {};
 }
 
 

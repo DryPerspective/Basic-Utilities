@@ -22,6 +22,8 @@
 #include<type_traits>
 #include<stdexcept>
 
+#include "PhysicsVector.h"
+
 namespace IO {
 
 	class ConfigReader
@@ -54,9 +56,9 @@ namespace IO {
 				//First deduce the format of our final result.
 				auto format{ std::chars_format::general };
 				//Regex for scientific format numbers. It can contain any number of numerical digits, optionally a decimal point, either e or E for exponent, optionally a -, then any number of digits.
-				std::regex scientific{ "[\-]?[0-9]+[\.]?[0-9]*[eE][\-]?[0-9]+" };
+				std::regex scientific{ "[\\-]?[0-9]+[\\.]?[0-9]*[eE][\\-]?[0-9]+" };
 				//Ditto for hex. Assumes that hex numbers are prefixed with "0x" in the file
-				std::regex hex{ "0x[\-]?[0-9a-fA-F]+[\.]?[0-9a-fA-F]*" };
+				std::regex hex{ "0x[\\-]?[0-9a-fA-F]+[\\.]?[0-9a-fA-F]*" };
 				if (std::regex_match(std::string(valueInFile), scientific))format = std::chars_format::scientific;
 				else if (std::regex_match(std::string(valueInFile), hex)) {
 					format = std::chars_format::hex;
@@ -87,6 +89,52 @@ namespace IO {
 			}
 		}
 
+		//This function will read a PhysicsVector object from the output file, as this has proven to be a common need for some projects.
+		template<std::size_t dim>
+		void readVector(std::string_view valueInFile, Physics::PhysicsVector<dim>& inVector) const {
+
+			//First, validate that the string is of the correct format (X,Y,Z)
+			std::regex vectorReg{ "[\\{\\[\\(<]?([0-9]*[\\.]?[0-9]*[\\,]?){0,}[0-9]+[\\.]?[0-9]*[\\}\\]\\)>]?" };	
+			//Optionally one of [{(<, then any amount of (0-9, optionally with a . and another [0-9] then ,), then another potentially decimal number and optionally a closing bracket
+			if (!std::regex_match(std::string(valueInFile), vectorReg)) {
+				std::string errMsg{ "Error: Vector " };
+				errMsg += valueInFile;
+				errMsg += " does not match the correct vector format.";
+				throw ConfigReader::ConfigException(errMsg);
+			}
+			//We delimit around the comma to reach our individual numbers.
+			//As we cannot easily insert our dim variable into the regex, the simplesy way to check we have the right number of dimensions is counting the number of commas
+			auto numberOfCommas{ std::count(valueInFile.begin(), valueInFile.end(),',') };
+			if (numberOfCommas != dim - 1) {
+				std::string errMsg{ "Error: Vector " };
+				errMsg += valueInFile;
+				errMsg += " has an incorrect number of dimensions.";
+				throw ConfigReader::ConfigException(errMsg);
+			}
+
+			//If the vector is surrounded by brackets, we need to trim them off. We account for all common bracket styles.
+			std::string brackets{ "{}[]()<>" };
+			if (std::any_of(brackets.begin(), brackets.end(), [valueInFile](const char& x) {return x == valueInFile[0]; })) valueInFile.remove_prefix(1);
+			if (std::any_of(brackets.begin(), brackets.end(), [valueInFile](const char& x) {return x == valueInFile[valueInFile.length() - 1]; })) valueInFile.remove_suffix(1);
+
+			//If we get this far, we have a good degree of confidence that our vector is of the correct format and that external brackets have been trimmed.
+			//All that remains is to separate out the numbers, read them, and write them to a PhysicsVector object. 
+			//This is trivial for 1D vectors, and in this case our entire valueInFile string should just be the number we want.
+			if constexpr (dim == 1) {
+				inVector.setAt(0, readNumerical(valueInFile));
+			}
+			//Otherwise we just read every number up to each comma, and set the vector accordingly
+			else {
+				for (std::size_t i = 0; i < dim; ++i) {
+					auto firstComma{ valueInFile.find_first_of(',') };
+					std::string_view firstTerm{ valueInFile.substr(0,firstComma) };
+					valueInFile.remove_prefix(firstComma + 1);
+					inVector.setAt(i, readNumerical<double>(firstTerm));
+				}
+			}
+		}
+
+
 	public:
 
 		//We don't want default or copy-instantiation so we disable those constructors.
@@ -104,10 +152,12 @@ namespace IO {
 
 
 		//Read an additional file and insert its data into the map.
-		void addFile(const std::string_view fileName, bool removeWS = true);
+		void addFile(const std::string_view fileName, bool removeWS = true);		
 
 
-		//A function to match the text in the file to a variable within the program, parsing it where necessary into a different type.
+		//This is the core function. It it the one-size-fits-all function to match a string which was in the file to some variable within the program.
+		//It has support for numeric types, strings, and PhysicsVector objects. As we're ostensibly reading from strings, exotic custom types can be read
+		//by returning the string and processing it in the main project file.
 		template <typename T>
 		void readValue(std::string varNameInFile, T& inVariable) const {
 			if (m_lower)toLower(varNameInFile);
@@ -126,12 +176,18 @@ namespace IO {
 			if constexpr (std::is_same<T, char>::value) {
 				inVariable = valueInMap[0];
 			}
+			//std::string
 			else if constexpr (std::is_same_v<T, std::string>) {
 				inVariable = valueInMap;
 			}
+			//Numerical types
 			else if constexpr (std::is_arithmetic_v<T>) {
 				inVariable = readNumerical<T>(valueInMap);
 			}
+			else if constexpr (Physics::is_PhysicsVector<T>::value) {
+				readVector(valueInMap, inVariable);
+			}
+			//C-srings
 			else if constexpr (std::is_array_v<T> && std::is_same_v<char&, decltype(*inVariable)>) {
 				if (valueInMap.length() > strlen(inVariable)) throw ConfigReader::ConfigException("Error: Attempting to match variable in file to a C-string which is too short to contain it");
 				else strcpy_s(inVariable, valueInMap.c_str());
@@ -141,6 +197,8 @@ namespace IO {
 			else throw ConfigReader::ConfigException("Error - readValue only supports numerical types, C-strings, and std::string");
 
 		}
+
+
 
 
 		//A custom exception to handle errors specific to ConfigReader operation.
