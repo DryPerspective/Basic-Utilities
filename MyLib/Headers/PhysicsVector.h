@@ -33,7 +33,7 @@ namespace Physics{
 	private:
 
 		//--------------PVDATA DATA CONTAINER MEMBER DEFINITIONS--------------------------
-		//PhysicsVector functions resume on line 286
+		//PhysicsVector functions resume on line 350
 
 		/*
 		* As above, for optimisation reasons we store our member components inside the PVData class. This class has specialisations for 2 and 3 dimensions which store the member data on the stack rather than on the heap.
