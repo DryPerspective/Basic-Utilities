@@ -17,7 +17,7 @@ namespace IO {
 			case '0':
 				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');	
 				return false;
-			default:
+			default: 
 				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');	
 				std::cout << "Error: Please enter a valid value.\n";
 			}
