@@ -7,40 +7,33 @@
 * 
 */
 
-#include <iostream>
-#include <string>
-#include <algorithm>
+#include<iostream>
+#include<string>
 
 namespace IO {
 
 	//A little crude, but this will read console input for a simple bool decision.
 	bool getYesNo() noexcept;
 
-	//A variation of the above function for custom input and decisions through the console.
-	//E.g. the decision to hit or stand in blackjack is more easily recognised by "hit" or "stand" rather than a variation of "yes" and "no".
-	bool getBinaryDecision(const std::string & trueValues, const std::string& falseValues) noexcept;
-
 
 	// -------TEMPLATED FUNCTIONS------------
-
-	//A basic boilerplate function to ignore a line in a general istream.
-	template<typename T>
-	void ignoreLine(std::basic_istream<T>& inStream) {
-		inStream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-	}
 
 	//Boilerplate to get a value from the console with some input validation.
 	template<typename T>
 	void getFromConsole(T& inValue) noexcept {
-		if constexpr (std::is_arithmetic_v<T>) {
+		if constexpr (std::is_same_v<T, bool>) {
+			T = getYesNo();
+		}
+		else if constexpr (std::is_arithmetic_v<T>) {
 			while (true) {
-				std::cin >> inValue;	//Read our value
-				ignoreLine(std::cin);	//And ignore anything left in the buffer.
+				std::cin >> inValue;
 				if (std::cin.fail()) {	//If extraction fails
 					std::cin.clear();	//Reset our input stream flag
+					std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');	//And ignore anything left in the buffer.
 					std::cout << "Error: Please enter a valid " << typeid(T).name() << " value. \n";
 				}
 				else {
+					std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');	//Clear any extraneous input
 					return;
 				}
 			}
@@ -59,7 +52,6 @@ namespace IO {
 		T input;
 		return getFromConsole(input);
 	}
-
 
 
 }

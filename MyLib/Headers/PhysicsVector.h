@@ -169,7 +169,12 @@ namespace Physics{
 			//Initialiser list construction
 			//This implementation differs from the case where we use a vector to store components in that initialiser lists which contain too many elements are no problem - we only pick the first three.
 			//Initialiser lists which contain too few elements will have the rest set to 0.
-			PVData(const std::initializer_list<double>& inList) : m_X{ 0 }, m_Y{ 0 }, m_Z{ 0 } {
+			PVData(const std::initializer_list<double>& inList) {
+				if (inList.size() < 3) {
+					m_X = 0;
+					m_Y = 0;
+					m_Z = 0;
+				}
 				std::vector<double> temp;                       //As initialiser_list has no indexing, we need to copy it to a container which does to access the first three elements.
 				for (double d : inList) {
 					temp.push_back(d);
