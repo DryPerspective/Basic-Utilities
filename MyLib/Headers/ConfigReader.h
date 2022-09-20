@@ -86,6 +86,8 @@ namespace IO {
 				errMsg += valueInFile;
 				errMsg += " is larger than the type it is being read as.";
 				throw ConfigReader::ConfigException(errMsg);
+				//This will never trigger but we need to return something from all paths.
+				return output;
 			}
 		}
 
@@ -166,7 +168,7 @@ namespace IO {
 			try {
 				valueInMap = m_values.at(varNameInFile);
 			}
-			catch (const std::out_of_range& e) {
+			catch (const std::out_of_range&) {
 				std::string errMsg{ "Error: Attempting to match value " };
 				errMsg += varNameInFile;
 				errMsg += " however this does not appear in the config file.";

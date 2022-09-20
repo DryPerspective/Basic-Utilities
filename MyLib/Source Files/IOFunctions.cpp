@@ -5,24 +5,38 @@ namespace IO {
 	bool getYesNo() noexcept {
 		char input;
 		while (true) {
-			std::cin >> input;
+			getFromConsole(input);
 			switch (input) {
-			case 'y':
+			case 'y':	//Yes
 			case 'Y':
+			case 't':	//True
+			case 'T':
 			case '1':
-				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');	//Clear any extraneous input
 				return true;
-			case 'n':
+			case 'n':	//No
 			case 'N':
+			case 'f':	//False
+			case 'F':
 			case '0':
-				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');	
 				return false;
 			default: 
-				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');	
 				std::cout << "Error: Please enter a valid value.\n";
 			}
 
 
+		}
+	}
+
+	bool getBinaryDecision(const std::string& trueValues, const std::string& falseValues) noexcept
+	{
+		char input;
+		while (true) {
+			getFromConsole(input);
+			if (std::any_of(trueValues.begin(), trueValues.end(), [input](const char& x) {return x == input; })) return true;
+			if (std::any_of(falseValues.begin(), falseValues.end(), [input](const char& x) {return x == input; })) return false;
+			else {
+				std::cout << "Error: Please enter a valid option.\n";
+			}
 		}
 	}
 
