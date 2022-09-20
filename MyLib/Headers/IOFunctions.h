@@ -50,7 +50,7 @@ namespace IO {
 	template<typename T>
 	T getFromConsole() noexcept {
 		T input;
-		return getFromConsole(input);
+		return getFromConsole(input); 
 	}
 
 
