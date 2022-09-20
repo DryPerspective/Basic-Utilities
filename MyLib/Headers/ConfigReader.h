@@ -87,6 +87,8 @@ namespace IO {
 				errMsg += " is larger than the type it is being read as.";
 				throw ConfigReader::ConfigException(errMsg);
 			}
+			//This will never trigger but we need to return something from all paths.
+			return output;
 		}
 
 		//This function will read a PhysicsVector object from the output file, as this has proven to be a common need for some projects.
@@ -166,7 +168,7 @@ namespace IO {
 			try {
 				valueInMap = m_values.at(varNameInFile);
 			}
-			catch (const std::out_of_range& e) {
+			catch (const std::out_of_range&) {
 				std::string errMsg{ "Error: Attempting to match value " };
 				errMsg += varNameInFile;
 				errMsg += " however this does not appear in the config file.";
@@ -195,7 +197,9 @@ namespace IO {
 				if (valueInMap.length() > strlen(inVariable)) throw ConfigReader::ConfigException("Error: Attempting to match variable in file to a C-string which is too short to contain it");
 				else strcpy_s(inVariable, valueInMap.c_str());
 			}
-			else throw ConfigReader::ConfigException("Error - readValue only supports numerical types, C-strings, PhysicsVector, and std::string");
+			else {
+				throw ConfigReader::ConfigException("Error - readValue only supports numerical types, C-strings, PhysicsVector, and std::string");
+			}
 			return inVariable;
 		}
 
