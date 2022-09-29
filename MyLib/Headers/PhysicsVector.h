@@ -161,21 +161,20 @@ namespace Physics{
 			PVData() : m_X{ 0 }, m_Y{ 0 }, m_Z{ 0 } {};
 
 			//Copy construction
-			PVData(const PVData<3>& inData) : m_X{ inData.m_X }, m_Y{ inData.m_Y }, m_Z{ inData.m_Z } {}
+			PVData(const PVData<3>&) = default;
 
 			//Move construction. While this is meaningless for double member data, we must provide an implementation to preserve the interface.
-			PVData(const PVData<3>&& inData) noexcept : m_X{ inData.m_X }, m_Y{ inData.m_Y }, m_Z{ inData.m_Z } {}
+			PVData(PVData<3>&&) noexcept = default;
 
 			//Initialiser list construction
-			//This implementation differs from the case where we use a vector to store components in that initialiser lists which contain too many elements are no problem - we only pick the first three.
 			//Initialiser lists which contain too few elements will have the rest set to 0.
-			PVData(const std::initializer_list<double>& inList) : m_X{ 0 }, m_Y{ 0 }, m_Z{ 0 } {
-				std::vector<double> temp;                       //As initialiser_list has no indexing, we need to copy it to a container which does to access the first three elements.
-				for (double d : inList) {
-					temp.push_back(d);
-				}
-				for (std::size_t i = 0; i < ((temp.size() > 3) ? 3 : temp.size()); ++i) {
-					this->setAt(i, temp[i]);
+			PVData(const std::initializer_list<double>& inList) : m_X{ 0 }, m_Y{ 0 }, m_Z{ 0 } { 
+				//We can't iterate along the list using indices, so we first zero-initialise all elements, and the iterate using iterators.
+				//We do need to introduce our own counter, but this approach allows us to directly write the elements to a vector.
+				int i{ 0 };
+				for (auto element : inList) {	//This type of for loop eliminates issues where the list is too short, as other elements are already 0.
+					if (i == 3)break;			//Break if we go above 3 elements, eliminating risk from lists which are too long.
+					(*this)[i++] = element;
 				}
 			}
 
@@ -263,21 +262,18 @@ namespace Physics{
 			PVData() :m_X{ 0 }, m_Y{ 0 }{};
 
 			//Copy construction
-			PVData(const PVData<2>& inData) : m_X{ inData.m_X }, m_Y{ inData.m_Y } {}
+			PVData(const PVData<2>&) = default;
 
 			//Move construction. As with 3D it's meaningless for double member data but we must keep the interface consistent.
-			PVData(const PVData<2>&& inData) : m_X{ inData.m_X }, m_Y{ inData.m_Y } {}
+			PVData(PVData<2>&&) noexcept = default;
 
 			//Initialiser list construction
 			//Again we ignore issues of a list which is too long and throw exceptions for a shorter list.
 			PVData(const std::initializer_list<double>& inList) : m_X{ 0 }, m_Y{ 0 } {
-				std::vector<double> temp;                       //As initialiser_list has no indexing, we need to copy it to a container which does to access the first three elements.
-				for (double d : inList) {
-					temp.push_back(d);
-				}
-				//The statement in the middle here accounts for cases where the initialiser list is longer than the vector can hold.
-				for (std::size_t i = 0; i < ((temp.size() > 2) ? 2 : temp.size()); ++i) {
-					this->setAt(i, temp[i]);
+				int i{ 0 };
+				for (auto element : inList) {	//This type of for loop eliminates issues where the list is too short, as other elements are already 0.
+					if (i == 2)break;			//Break if we go above 2 elements, eliminating risk from lists which are too long.
+					(*this)[i++] = element;
 				}
 			}
 
@@ -619,14 +615,6 @@ namespace Physics{
 		static PhysicsVector<dim> vectorProduct(const PhysicsVector<dim>& inVector1, const PhysicsVector<dim>& inVector2) {
 			return inVector1.vectorProduct(inVector2);
 		}
-
-
-
-
-	
-
-
-
 	};
 
 	/*
