@@ -160,9 +160,8 @@ namespace IO {
 		//This is the core function. It it the one-size-fits-all function to match a string which was in the file to some variable within the program.
 		//It has support for numeric types, strings, and PhysicsVector objects. As we're ostensibly reading from strings, exotic custom types can be read
 		//by returning the string and processing it in the main project file.
-		//We return a reference to the variable being fed in so that this function can be chained if needed.
 		template <typename T>
-		T& readValue(std::string varNameInFile, T& inVariable) const {
+		void readValue(std::string varNameInFile, T& inVariable) const {
 			if (m_lower)toLower(varNameInFile);
 			std::string valueInMap;
 			try {
@@ -192,13 +191,15 @@ namespace IO {
 			else if constexpr (Physics::is_PhysicsVector<T>::value) {
 				readVector(valueInMap, inVariable);
 			}
+			/*
 			//C-srings
 			else if constexpr (std::is_array_v<T> && std::is_same_v<char&, decltype(*inVariable)>) {
 				if (valueInMap.length() > strlen(inVariable)) throw ConfigReader::ConfigException("Error: Attempting to match variable in file to a C-string which is too short to contain it");
 				else strcpy_s(inVariable, valueInMap.c_str());
 			}
-			else throw ConfigReader::ConfigException("Error - readValue only supports numerical types, C-strings, PhysicsVector, and std::string");
-			return inVariable;
+			*/
+			else throw ConfigReader::ConfigException("Error - readValue only supports numerical types, PhysicsVector, and std::string");
+
 		}
 
 
