@@ -22,7 +22,7 @@ private:
 	std::vector<arrayType>		m_bits;		//The data structure which contains our number's value. We use fixed-width unsigned intergers as bit collections to represent a larger number.
 											//The array is "little endian" in that the index of 0 represents the least significant term.
 	
-	static constexpr arrayType	unitSize	{ 8 * sizeof(arrayType) };					//As we can hypothetically use any unsigned integer for this, we define these constants to represent that type's limits.
+	static constexpr arrayType	unitSize	{ 8 * sizeof(arrayType) };					//As we can hypothetically use any unsigned integer type for this object, we define these constants to represent that type's limits.
 	static constexpr arrayType	maxBitValue	{ std::numeric_limits<arrayType>::max() };	//The maximum value which can be represented per entry in our "bits" array. Used for checking for overflow.
 
 
@@ -140,11 +140,6 @@ public:
 	std::string toString(int base = 10) const;
 
 
-
-	/*
-	* TESTING FUNCITONS TO BE DELETED
-	*/
-	
 
 };
 

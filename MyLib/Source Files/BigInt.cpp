@@ -681,8 +681,3 @@ std::string BigInt::toString(int base) const {
 	}
 }
 
-/*
-* TESTING FUNCTIONS TO BE DLETED
-*/
-
-
