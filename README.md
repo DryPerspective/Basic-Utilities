@@ -18,3 +18,5 @@ This section will document a brief overview of each part of the library and what
 - **SimpleTimer and MultiTimer** - Classes which use the chrono header to track a single point in time, or multiple (respectively) and compare how much time has elapsed since.
 
 - **IOFunctions** - Some basic boilerplate IO functions to read in data through the console with input validation.
+
+- **BigInt** - A class to represent an arbitrarily sized (signed) integer, complete with arithmetic, comparison, and bitwise operators. Allows up to `std::numeric_limits<std::size_t>::max()`-bit integers before functionality breaks down. On the author's machine this corresponds to being able to represent ~5.55 x 10<sup>18</sup> decimal digits, or a range of ± ~10<sup>10<sup>18.74</sup></sup>.
