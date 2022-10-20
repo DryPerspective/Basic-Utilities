@@ -117,6 +117,9 @@ namespace numeric {
 		BigInt operator^(const BigInt& inInt) const;
 		BigInt operator~() const;
 
+		//Expanding Left Shift. This operates as a bitwise << operator, except it will expand the range of the BigInt to fit the equation rather than truncating off any overflow.
+		BigInt xLS(arrayType inInt) const;
+
 
 		/*
 		* ASSIGNMENT OPERATORS

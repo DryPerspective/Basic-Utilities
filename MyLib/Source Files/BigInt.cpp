@@ -83,10 +83,8 @@ namespace numeric {
 		auto totalBits{ unitSize * dividend.m_bits.size() };
 		for (auto i = 0; i < totalBits; ++i) {			//Can't count down to 0 as i will likely be an unsigned type
 
-			//This if statement accounts for the fact that remainder may overflow its initial bounds. We unfortunately can't cleanly plug remainder with extra zeroes before the loop.
-			//As we don't necessarily know how long remainder will need to be, and it would interfere with the calculations of operator>=
-			if (getNthBit(remainder.m_bits[remainder.m_bits.size() - 1], unitSize - 1)) remainder.m_bits.push_back(0);
-			remainder <<= 1;
+			remainder = remainder.xLS(1);				//We specifically want the expanding left shift in this case.
+			//remainder <<= 1;
 			remainder.setTotalNthBit(0, dividend.getTotalNthBit(totalBits - i - 1));
 			if (remainder >= divisor) {
 				remainder -= divisor;
@@ -596,6 +594,21 @@ namespace numeric {
 		for (auto i = 0; i < solution.m_bits.size(); ++i) {
 			solution.m_bits[i] = ~(solution.m_bits[i]);
 		}
+		solution.trimLeadingZeroes();
+		return solution;
+	}
+
+	
+	BigInt BigInt::xLS(arrayType inInt) const {
+		auto extraTermsNeeded{ ((inInt) / unitSize) + 1 };		
+		BigInt solution{ *this };		
+		if (extraTermsNeeded > 0) {
+			solution.m_bits.reserve(solution.m_bits.size() + extraTermsNeeded);
+			for (auto i = 0; i < extraTermsNeeded; ++i) {
+				solution.m_bits.push_back(0);
+			}
+		}
+		solution <<= inInt;
 		solution.trimLeadingZeroes();
 		return solution;
 	}
