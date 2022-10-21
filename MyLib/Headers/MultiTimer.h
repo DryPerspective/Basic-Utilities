@@ -7,7 +7,7 @@
 #include <map>
 #include <utility>	//For std::make_pair()
 
-namespace Timer {
+namespace utility {
 
 	/*
 	* The MultiTimer object uses the chrono header to track multiple different times. Each time is stored internally in a map and can be called up as needed.
@@ -18,7 +18,7 @@ namespace Timer {
 	private:
 		using timepoint_t = std::chrono::time_point<std::chrono::steady_clock>;		
 
-		std::map<std::string, timepoint_t> m_storedTimes;
+		std::map<int, timepoint_t> m_storedTimes;
 
 	public:
 		//Constructor to set up the initial time.
@@ -28,16 +28,16 @@ namespace Timer {
 		void reset();
 
 		//Add a new time to the clock
-		void addTime(const std::string& inKey);
+		void addTime(int inKey);
 
 		//Determine how long has elapsed since the initial time
 		double elapsed() const;
 
 		//Determine how long has elapsed since a given point.
-		double elapsed(const std::string& inKey) const;
+		double elapsed(int inKey) const;
 
 		//And determine how long elapsed between two stored times.
-		double elapsed(const std::string& inKey1, const std::string& inKey2) const;
+		double elapsed(int inKey1, int inKey2) const;
 
 	};
 }
