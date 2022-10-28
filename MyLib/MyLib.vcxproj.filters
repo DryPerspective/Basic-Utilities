@@ -33,7 +33,7 @@
     <ClInclude Include="Headers\BigInt.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Headers\Utility.h">
+    <ClInclude Include="Headers\MiscUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

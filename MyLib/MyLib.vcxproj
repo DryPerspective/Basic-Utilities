@@ -25,7 +25,7 @@
     <ClInclude Include="Headers\MultiTimer.h" />
     <ClInclude Include="Headers\PhysicsVector.h" />
     <ClInclude Include="Headers\SimpleTimer.h" />
-    <ClInclude Include="Headers\Utility.h" />
+    <ClInclude Include="Headers\MiscUtils.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source Files\BigInt.cpp" />
