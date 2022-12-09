@@ -68,6 +68,8 @@ namespace IO {
 
 	//Boilerplate for a from_chars read. As its parameters vary between integral and floating point types, we use a bit of SFINAE to isolate those types
 	//This allows us to vary our function parameters depenging on the type fed in, as needed.
+	//Note that these are not intended as a one-size-fits-all substitution for intelligent and considered use of from_chars, but provide a simple way to get the data
+	//in situations where the benefits being bypassed aren't as relevant.
 	template<typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
 	T getFromChars(std::string_view inputString, int base = 10) {
 		T output{};

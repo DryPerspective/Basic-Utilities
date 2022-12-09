@@ -614,11 +614,14 @@ namespace Physics{
 	/*
 	* A pair of templated structs to easily determine if a templated type is a PhysicsVector without confining its dimension
 	*/
-	template <class T>
+	template <typename T>
 	struct is_PhysicsVector : std::false_type {};
 
 	template <std::size_t N>
 	struct is_PhysicsVector<Physics::PhysicsVector<N>> : std::true_type {};
+
+	template<typename T>
+	constexpr inline bool is_PhysicsVector_v {is_PhysicsVector<T>::value};
 
 	//Forward declarations and definitions because template
 	namespace {
