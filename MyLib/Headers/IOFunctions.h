@@ -7,9 +7,11 @@
 * 
 */
 
-#include<iostream>
-#include<string>
+#include <iostream>
+#include <string>
 #include <algorithm>
+#include <string_view>
+#include <charconv>
 
 namespace IO {
 
@@ -61,6 +63,63 @@ namespace IO {
 	T getFromConsole() noexcept {
 		T input;
 		return getFromConsole(input); 
+	}
+
+
+	//Boilerplate for a from_chars read. As its parameters vary between integral and floating point types, we use a bit of SFINAE to isolate those types
+	//This allows us to vary our function parameters depenging on the type fed in, as needed.
+	template<typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
+	T getFromChars(std::string_view inputString, int base = 10) {
+		T output{};
+
+		auto [ptr, errc] {std::from_chars(inputString.data(), inputString.data() + inputString.length(), output, base)};
+
+		if (ptr == inputString.data() + inputString.length()) return output;
+		else if (ptr == inputString.data()) {
+			if (errc == std::errc::invalid_argument) throw std::invalid_argument("Bad from_chars argument");
+			else if (errc == std::errc::result_out_of_range) throw std::out_of_range("From_chars argument out of range");
+		}
+		else {
+			//throw std::invalid_argument("Partial from_chars match");
+		}
+		return output;
+	}
+
+	//Noexcept variant, mirroring some std constructs.
+	//Does not account for the edge case of a partial match, admittedly, but in most cases the user should be the one to avoid that.
+	template<typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
+	T getFromChars(std::string_view inputString, std::errc& errc, int base = 10) noexcept {
+		T output{};
+
+		auto result{ std::from_chars(inputString.data, inputString.data() + inputString.length(), output, base) };
+		errc = result.errc;
+		return output;
+	}
+
+
+	//And on to floating point types.
+	template<typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+	T getFromChars(std::string_view inputString, std::chars_format fmt = std::chars_format::general) {
+		T output{};
+		auto [ptr, errc] {std::from_chars(inputString.data(), inputString.data() + inputString.length(), output, fmt)};
+		if (ptr == inputString.data() + inputString.length()) return output;
+		else if (ptr = inputString.data()) {
+			if (errc == std::errc::invalid_argument)throw std::invalid_argument("Bad from_chars argument");
+			else if (errc == std::errc::result_out_of_range) throw std::out_of_range("From_chars argument out of range");
+		}
+		else {
+			//throw std::invalid_argument("Partial from_chars match");
+		}
+
+		return output;
+	}
+
+	template<typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+	T getFromChars(std::string_view inputString, std::errc& errc, std::chars_format fmt = std::chars_format::general) noexcept {
+		T output{};
+		auto result{ std::from_chars(inputString.data, inputString.data() + inputString.length(), output, fmt) };
+		errc = result.errc;
+		return output;
 	}
 
 

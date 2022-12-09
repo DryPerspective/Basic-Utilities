@@ -4,11 +4,27 @@
 #pragma once
 
 /*
- ConfigReader - A class intended to automate the reading of configuration files and binding of variables to those values. 
+ ConfigReader - A class intended to automate the reading of configuration files and binding of variables to those values.
  In short, many of my projects need to read a file of the format:
  Variable1=[Value]
  Variable2=[Value]
+ A few notes on file layout - by default whitespace and empty lines are ignored by the program, and lines in the config file can be "commented" by starting them with #
  In order to configure themselves and get the correct values into the program. This class is intended to take a file of that layout and automate the reading of it.
+
+ This class does appear from the outset to be rather memory-heavy. And to an extent this is true - it internally stores a map of strings of all values in the input
+ file at once. However the intention is that the entire ConfigReader class can be created, its values read, and then it (implicitly) destructed in a single try block
+ near the beginning of the program. It also includes a close() member function to empty the map if direct control over that is needed.
+
+ The main readValue function supports the following types:
+ * Fundamental integer and floating point types, written in base-10, scientific, or hex notation, though hex must be prefixed with "0x" in the file
+ * Char
+ * Bool
+ * std::string
+ In addition it also supports genertic types T which meet *any* of the following criteria
+ * Must be assignable from std::string, i.e. std::is_assignable_v<T, std::string> must be true.
+ * Must be constructable from a std::string_view and no other parameters, and must be either move- or copy-assignable, with move-assignment taking priority.
+ * Must be constructable from a std::string and no other parameters, and must be either move- or copy-assignable, with move-assignment taking priority.
+ * Must be extractable from an std::istream using operator>>, such that an extraction with types std::string >> T will evaluate correctly.
 */
 
 #include<iostream>
@@ -21,206 +37,246 @@
 #include<regex>
 #include<type_traits>
 #include<stdexcept>
+#include<sstream>
 
-#include "PhysicsVector.h"
 
-namespace IO {
+	//A trait used to determine whether a generic class T supports extraction from an istream.
+	//We only want internal linkage for this trait as it is specifically intended for use by this class only.
+	namespace {
 
-	class ConfigReader
-	{
-	private:
+		template<typename, typename = std::void_t<>>
+		struct hasExtract : std::false_type {};
 
-		//Encapsulation as we want a complete wrapper around the data container and want to prevent external meddling with it.
-		std::unordered_map<std::string, std::string>	m_values;
-		bool											m_lower;		//Whether to process all string text to lower case to prevent some potential misspellings.
-		bool											m_removeWS; 	//Whether to remove all whitespace from processed text in the file.
-
-		//Adds all data from a file to the m_values map. Separated from constructor for use with addFile function.
-		void addFileToMap(const std::string_view fileName);
-
-		//To save time and remove case-sensitivity, this function will set all letters in the string to lower case.
-		void toLower(std::string& inString) const;
-
-		//This function is called to read a string representing a number into a numerical type.
 		template<typename T>
-		T readNumerical(std::string_view valueInFile) const {
+		struct hasExtract<T, std::void_t<decltype(std::declval<std::istream&>() >> std::declval<T&>())>> : std::true_type {};
 
-			//Then use from_chars to read it.
-			T output;
-			std::from_chars_result result;
+		template<typename T>
+		constexpr inline bool hasExtract_v{ hasExtract<T>::value };
+	}
+
+	namespace IO {
+
+		class ConfigReader
+		{
+
+		public:
+			//Configuration flags. Declared here so we can use them as private member data.
+			enum flags : unsigned char {
+				noFlagsActive = 0,
+				removeAllWs = 0b00000001,		//Remove white space from inside the text in the config file. e.g. Message = Hello World -> {Message,HelloWorld}
+				keepAllPadding = 0b00000010,		//Keep any white space "padding" left between the equals and the value and after the value in the config file, e.g. Message = Hello World -> {Message , Hello World}
+				caseInsensitive = 0b00000100,		//Set all text read in to lower case for both storage and retrieval. This means input is not case sensitive.
+			};
 
 
-			//Integer and floating point values use from_chars differently, so we separate here
-			if constexpr (std::is_floating_point<T>::value) {
+		private:
 
-				//First deduce the format of our final result.
-				auto format{ std::chars_format::general };
-				//Regex for scientific format numbers. It can contain any number of numerical digits, optionally a decimal point, either e or E for exponent, optionally a -, then any number of digits.
-				std::regex scientific{ "[\\-]?[0-9]+[\\.]?[0-9]*[eE][\\-]?[0-9]+" };
-				//Ditto for hex. Assumes that hex numbers are prefixed with "0x" in the file
-				std::regex hex{ "0x[\\-]?[0-9a-fA-F]+[\\.]?[0-9a-fA-F]*" };
-				if (std::regex_match(std::string(valueInFile), scientific))format = std::chars_format::scientific;
-				else if (std::regex_match(std::string(valueInFile), hex)) {
-					format = std::chars_format::hex;
-					//We need to remove the 0x prefix as from_chars can't parse it.
-					valueInFile.remove_prefix(2);
+
+
+			//Encapsulation as we want a complete wrapper around the data container and want to prevent external meddling with it.
+			std::unordered_map<std::string, std::string>	m_values;
+			ConfigReader::flags								m_flags;
+
+			//Adds all data from a file to the m_values map. Separated from constructor for use with addFile function.
+			void addFileToMap(std::string_view fileName);
+
+			//Simple function to trim any leading or trailing whitespace from a string,
+			static std::string trim(const std::string& str, std::string_view whitespace = " \f\n\r\t\v");
+
+			//Sets all text to lower case, used for the caseInsensitive flag
+			static void toLower(std::string& inString);
+
+			//This function is called to read a string representing a number into a numerical type.
+			template<typename T>
+			T readNumerical(std::string_view valueInFile) const {
+
+				//Then use from_chars to read it.
+				T output{};
+				std::from_chars_result result;
+
+
+				//Integer and floating point values use from_chars differently, so we separate here
+				if constexpr (std::is_floating_point<T>::value) {
+
+					//First deduce the format of our final result.
+					auto format{ std::chars_format::general };
+					//Regex for scientific format numbers. It can contain any number of numerical digits, optionally a decimal point, either e or E for exponent, optionally a -, then any number of digits.
+					std::regex scientific{ "[\\-]?[0-9]+[\\.]?[0-9]*[eE][\\-]?[0-9]+" };
+					//Ditto for hex. Assumes that hex numbers are prefixed with "0x" in the file
+					std::regex hex{ "0x[\\-]?[0-9a-fA-F]+[\\.]?[0-9a-fA-F]*" };
+					if (std::regex_match(std::string(valueInFile), scientific))format = std::chars_format::scientific;
+					else if (std::regex_match(std::string(valueInFile), hex)) {
+						format = std::chars_format::hex;
+						//We need to remove the 0x prefix as from_chars can't parse it.
+						valueInFile.remove_prefix(2);
+					}
+					//std::string readString{ valueInFile };
+					result = std::from_chars(valueInFile.data(), valueInFile.data() + valueInFile.length(), output, format);
 				}
-				//std::string readString{ valueInFile };
-				result = std::from_chars(valueInFile.data(), valueInFile.data() + valueInFile.length(), output, format);
-			}
-			else {
-				result = std::from_chars(valueInFile.data(), valueInFile.data() + valueInFile.length(), output);
-			}
+				else {
+					result = std::from_chars(valueInFile.data(), valueInFile.data() + valueInFile.length(), output);
+				}
 
-			//Now onto error handling and ensuring that we got the right result.
-			//As the success largely depends on the user entering the correct data in the input file, we throw exceptions when they do not.
-			if (result.ptr == valueInFile.data() + valueInFile.length()) return output;
-			else if (result.ec == std::errc::invalid_argument) {
-				std::string errMsg{ "Error: Value " };
-				errMsg += valueInFile;
-				errMsg += " in file is of an invalid format.";
-				throw ConfigReader::ConfigException(errMsg);
-			}
-			else if (result.ec == std::errc::result_out_of_range) {
-				std::string errMsg{ "Error: Value " };
-				errMsg += valueInFile;
-				errMsg += " is larger than the type it is being read as.";
-				throw ConfigReader::ConfigException(errMsg);
+				//Now onto error handling and ensuring that we got the right result.
+				//As the success largely depends on the user entering the correct data in the input file, we throw exceptions when they do not.
+				if (result.ptr == valueInFile.data() + valueInFile.length()) return output;
+				else if (result.ec == std::errc::invalid_argument) {
+					std::string errMsg{ "Error: Value " };
+					errMsg += valueInFile;
+					errMsg += " in file is of an invalid format.";
+					throw ConfigReader::ConfigException(errMsg);
+				}
+				else if (result.ec == std::errc::result_out_of_range) {
+					std::string errMsg{ "Error: Value " };
+					errMsg += valueInFile;
+					errMsg += " is larger than the type it is being read as.";
+					throw ConfigReader::ConfigException(errMsg);
+
+				}
 				//This will never trigger but we need to return something from all paths.
 				return output;
 			}
-		}
-
-		//This function will read a PhysicsVector object from the output file, as this has proven to be a common need for some projects.
-		template<std::size_t dim>
-		void readVector(std::string_view valueInFile, Physics::PhysicsVector<dim>& inVector) const {
-
-			//First, validate that the string is of the correct format (X,Y,Z)
-			std::regex vectorReg{ "[\\{\\[\\(<]?([0-9]*[\\.]?[0-9]*[\\,]?){0,}[0-9]+[\\.]?[0-9]*[\\}\\]\\)>]?" };	
-			//Optionally one of [{(<, then any amount of (0-9, optionally with a . and another [0-9] then ,), then another potentially decimal number and optionally a closing bracket
-			if (!std::regex_match(std::string(valueInFile), vectorReg)) {
-				std::string errMsg{ "Error: Vector " };
-				errMsg += valueInFile;
-				errMsg += " does not match the correct vector format.";
-				throw ConfigReader::ConfigException(errMsg);
-			}
-			//We delimit around the comma to reach our individual numbers.
-			//As we cannot easily insert our dim variable into the regex, the simplesy way to check we have the right number of dimensions is counting the number of commas
-			auto numberOfCommas{ std::count(valueInFile.begin(), valueInFile.end(),',') };
-			if (numberOfCommas != dim - 1) {
-				std::string errMsg{ "Error: Vector " };
-				errMsg += valueInFile;
-				errMsg += " has an incorrect number of dimensions.";
-				throw ConfigReader::ConfigException(errMsg);
-			}
-
-			//If the vector is surrounded by brackets, we need to trim them off. We account for all common bracket styles.
-			std::string brackets{ "{}[]()<>" };
-			if (std::any_of(brackets.begin(), brackets.end(), [valueInFile](const char& x) {return x == valueInFile[0]; })) valueInFile.remove_prefix(1);
-			if (std::any_of(brackets.begin(), brackets.end(), [valueInFile](const char& x) {return x == valueInFile[valueInFile.length() - 1]; })) valueInFile.remove_suffix(1);
-
-			//If we get this far, we have a good degree of confidence that our vector is of the correct format and that external brackets have been trimmed.
-			//All that remains is to separate out the numbers, read them, and write them to a PhysicsVector object. 
-			//This is trivial for 1D vectors, and in this case our entire valueInFile string should just be the number we want.
-			if constexpr (dim == 1) {
-				inVector.setAt(0, readNumerical(valueInFile));
-			}
-			//Otherwise we just read every number up to each comma, and set the vector accordingly
-			else {
-				for (std::size_t i = 0; i < dim; ++i) {
-					auto firstComma{ valueInFile.find_first_of(',') };
-					std::string_view firstTerm{ valueInFile.substr(0,firstComma) };
-					valueInFile.remove_prefix(firstComma + 1);
-					inVector.setAt(i, readNumerical<double>(firstTerm));
-				}
-			}
-		}
 
 
-	public:
-
-		//We don't want default or copy-instantiation so we disable those constructors.
-		ConfigReader() = delete;
-		ConfigReader(const ConfigReader&) = delete;
-
-		//We only want construction when we have a specific file to open and read.
-		ConfigReader(const std::string_view fileName, bool removeWS = true, bool setLowerCase = false);
-
-		//We want our destructor virtual in case of inheritance.
-		virtual ~ConfigReader() = default;
-
-		//Free up memory from the map for cases where we are done with the ConfigReader but it remains in scope
-		void close();
-
-
-		//Read an additional file and insert its data into the map.
-		void addFile(const std::string_view fileName);		
-
-
-		//This is the core function. It it the one-size-fits-all function to match a string which was in the file to some variable within the program.
-		//It has support for numeric types, strings, and PhysicsVector objects. As we're ostensibly reading from strings, exotic custom types can be read
-		//by returning the string and processing it in the main project file.
-		template <typename T>
-		void readValue(std::string varNameInFile, T& inVariable) const {
-			if (m_lower)toLower(varNameInFile);
-			std::string valueInMap;
-			try {
-				valueInMap = m_values.at(varNameInFile);
-			}
-			catch (const std::out_of_range&) {
-				std::string errMsg{ "Error: Attempting to match value " };
-				errMsg += varNameInFile;
-				errMsg += " however this does not appear in the config file.";
-				throw ConfigReader::ConfigException(errMsg);
-			}
-
-
-			//Different types handle differently. Char comes first as it would also be caught in is_arithmetic
-			if constexpr (std::is_same<T, char>::value) {
-				inVariable = valueInMap[0];
-			}
-			//std::string
-			else if constexpr (std::is_same_v<T, std::string>) {
-				inVariable = valueInMap;
-			}
-			//Numerical types
-			else if constexpr (std::is_arithmetic_v<T>) {
-				inVariable = readNumerical<T>(valueInMap);
-			}
-			//PhysicsVector types
-			else if constexpr (Physics::is_PhysicsVector<T>::value) {
-				readVector(valueInMap, inVariable);
-			}
-			/*
-			//C-srings
-			else if constexpr (std::is_array_v<T> && std::is_same_v<char&, decltype(*inVariable)>) {
-				if (valueInMap.length() > strlen(inVariable)) throw ConfigReader::ConfigException("Error: Attempting to match variable in file to a C-string which is too short to contain it");
-				else strcpy_s(inVariable, valueInMap.c_str());
-			}
-			*/
-			else throw ConfigReader::ConfigException("Error - readValue only supports numerical types, PhysicsVector, and std::string");
-
-		}
-
-
-
-
-		//A custom exception to handle errors specific to ConfigReader operation.
-		class ConfigException : public std::exception {
-		private:
-			std::string m_message;
 
 		public:
-			ConfigException(std::string_view message) : m_message{ message } {};
 
-			virtual ~ConfigException() = default;
+			//We don't want default or copy-instantiation so we disable those constructors.
+			ConfigReader() = delete;
+			ConfigReader(const ConfigReader&) = delete;
 
-			const char* what() const noexcept override;
+			//There's no particular reason that move construction should be forbidden, though its expected use will be a bit niche.
+			ConfigReader(ConfigReader&&) noexcept = default;
+
+			//We only want construction when we have a specific file to open and read.
+			ConfigReader(std::string_view fileName, ConfigReader::flags inFlags = flags::noFlagsActive);
+
+			//We want our destructor virtual in case of inheritance.
+			virtual ~ConfigReader() = default;
+
+			//Free up memory from the map for cases where we are done with the ConfigReader but it remains in scope
+			void close();
+
+			//Read an additional file and insert its data into the map.
+			void addFile(std::string_view fileName);
+
+
+			//This is the core function. It it the one-size-fits-all function to match a string which was in the file to some variable within the program.
+			//It has support for numeric types, strings, and PhysicsVector objects. As we're ostensibly reading from strings, exotic custom types can be read
+			//by returning the string and processing it in the main project file.
+			template <typename T>
+			void readValue(std::string varNameInFile, T& inVariable) const {
+				if (m_flags & flags::caseInsensitive) {
+					toLower(varNameInFile);
+				}
+				std::string valueInMap;
+				try {
+					valueInMap = m_values.at(varNameInFile);
+				}
+				catch (const std::out_of_range&) {
+					std::string errMsg{ "Error: Attempting to match value " };
+					errMsg += varNameInFile;
+					errMsg += " however this does not appear in the config file.";
+					throw ConfigReader::ConfigException(errMsg);
+				}
+
+
+				//Different types handle differently. Char comes first as it would also be caught in is_arithmetic
+				if constexpr (std::is_same<T, char>::value) {
+					inVariable = valueInMap[0];
+				}
+				//std::string
+				else if constexpr (std::is_same_v<T, std::string>) {
+					inVariable = valueInMap;
+				}
+				//Bool.
+				else if constexpr (std::is_same_v<T, bool>) {
+					switch (valueInMap[0]) {
+					case 't':	//true
+					case 'T':
+					case 'y':	//yes
+					case 'Y':
+					case '1':	//generic 1
+						inVariable = true;
+						break;
+					case 'f':	//false
+					case 'F':
+					case 'n':	//no
+					case 'N':
+					case '0':	//generic 0
+						inVariable = false;
+						break;
+					default:
+						throw ConfigReader::ConfigException("Error: Attempting to read bool but variable in file is set to incorrect value.");
+					}
+				}
+				//Numerical types
+				else if constexpr (std::is_arithmetic_v<T>) {
+					inVariable = readNumerical<T>(valueInMap);
+				}
+				//GENERIC TYPES
+				//Assigned directly by a std::string
+				else if constexpr (std::is_assignable_v<T, std::string>) {
+					inVariable = valueInMap;
+				}
+				//Constructble from a string_view along and can be move assigned
+				else if constexpr (std::is_constructible_v<T, std::string_view> && std::is_move_assignable_v<T>) {
+					inVariable = std::move(T{ valueInMap });
+				}
+				else if constexpr (std::is_constructible_v<T, std::string_view> && std::is_copy_assignable_v<T>) {
+					//Note we need to make a temporary as we need an lvalue, since this branch can trigger if the class
+					//explicitly cannot move-assign.
+					T temp{ valueInMap };
+					inVariable = temp;
+				}
+				//Constructible from a string alone and can be move assigned
+				else if constexpr (std::is_constructible_v<T, std::string> && std::is_move_assignable_v<T>) {
+					inVariable = std::move(T{ valueInMap });
+				}
+				//Constructable from a string alone and can be copy assigned.
+				else if constexpr (std::is_constructible_v<T, std::string> && std::is_copy_assignable_v<T>) {
+					//Again we need an lvalue here.
+					T temp{ valueInMap };
+					inVariable = temp;
+				}
+				else if constexpr (hasExtract_v<T>) {
+					std::stringstream sstr;
+					sstr << valueInMap;
+					sstr >> inVariable;
+				}
+				/*
+				//C-srings
+				else if constexpr (std::is_array_v<T> && std::is_same_v<char&, decltype(*inVariable)>) {
+					if (valueInMap.length() > strlen(inVariable)) throw ConfigReader::ConfigException("Error: Attempting to match variable in file to a C-string which is too short to contain it");
+					else strcpy_s(inVariable, valueInMap.c_str());
+				}
+				*/
+				else throw ConfigReader::ConfigException("Error - readValue called on unsupported type.");
+
+			}
+
+
+
+			//A custom exception to handle errors specific to ConfigReader operation.
+			class ConfigException : public std::exception {
+			private:
+				std::string m_message;
+
+			public:
+				ConfigException(std::string_view message) : m_message{ message } {};
+
+				virtual ~ConfigException() = default;
+
+				const char* what() const noexcept override;
+			};
+
+
+
 		};
 
+	}
 
 
-	};
-}
+
 
 #endif

@@ -21,10 +21,26 @@
 #include <cmath>	//For sqrt() and pow()
 #include <numeric>	//For the inner product
 #include <limits>	//For epsilon function in getUnitVector
+#include <regex>	//Used to analyse strings for PhysicsVector layout
+#include <charconv>
 
 
 
 namespace Physics{
+
+	//Forward declarations to resolve potential dependency issues.
+
+	template<std::size_t dim>
+	class PhysicsVector;
+
+	template<std::size_t dim>
+	bool readVector(std::string_view, PhysicsVector<dim>&);
+
+	template<std::size_t dim>
+	PhysicsVector<dim> readVector(std::string_view);
+
+
+
 
 
 	template <std::size_t dim>
@@ -359,6 +375,11 @@ namespace Physics{
 		//PVData should enforce that the list has the correct number of elements, so we call its initialiser list constructor.
 		PhysicsVector(const std::initializer_list<double>& inList) : m_components{ inList } {}
 
+		PhysicsVector(std::string_view inString) : PhysicsVector() {
+			readVector(inString, *this);
+		}
+	
+
 		//Virtual default destructor.
 		virtual ~PhysicsVector() = default;
 
@@ -598,6 +619,76 @@ namespace Physics{
 
 	template <std::size_t N>
 	struct is_PhysicsVector<Physics::PhysicsVector<N>> : std::true_type {};
+
+	//Forward declarations and definitions because template
+	namespace {
+		//For the sake of keeping PhysicsVector self-contained, we keep a function to read the doubles from a string
+		//As this function is only called internally from a function which already validates that the string has the correct layout,
+		//we can be fairly confident that minimal error handling is needed.
+		inline double getNumber(std::string_view input) {
+			double output;
+			std::from_chars(input.data(), input.data() + input.length(), output);
+			return output;
+		}
+	}
+
+	//This function is intended to read and construct a PhysicsVector object from a std::string
+	//This version is very generalised and as such is a little heavy in performance.
+	//Specific needs in specific projects can be met by providing a specialisation of this template which is specific to that project.
+	//This function returns true if the vector was read in correctly, and false otherwise. In the event of an invalid call, it sets the input vector to {0,0,...0};
+	template<std::size_t dim>
+	bool readVector(std::string_view inputString, Physics::PhysicsVector<dim>& inVector) {
+		//First, validate that the string is of the correct format (X,Y,Z)
+		std::regex vectorReg{ "[\\{\\[\\(<]?([0-9]*[\\.]?[0-9]*[\\,]){0,}[0-9]+[\\.]?[0-9]*[\\}\\]\\)>]?" };
+		//Optionally one of [{(<, then any amount of (0-9, optionally with a . and another [0-9] then ,), then another potentially decimal number and optionally a closing bracket
+		if (!std::regex_match(std::string(inputString), vectorReg)) {
+			inVector = PhysicsVector<dim>{};
+			return false;
+		}
+		//We delimit around the comma to reach our individual numbers.
+		//As we cannot easily insert our dim variable into the regex, the simplesy way to check we have the right number of dimensions is counting the number of commas
+		auto numberOfCommas{ std::count(inputString.begin(), inputString.end(),',') };
+		if (numberOfCommas != dim - 1) {
+			inVector = PhysicsVector<dim>{};
+			return false;
+		}
+
+		//If the vector is surrounded by brackets, we need to trim them off. We account for all common bracket styles.
+		std::string brackets{ "{}[]()<>" };
+		if (std::any_of(brackets.begin(), brackets.end(), [inputString](const char& x) {return x == inputString[0]; })) inputString.remove_prefix(1);
+		if (std::any_of(brackets.begin(), brackets.end(), [inputString](const char& x) {return x == inputString[inputString.length() - 1]; })) inputString.remove_suffix(1);
+
+		//If we get this far, we have a good degree of confidence that our vector is of the correct format and that external brackets have been trimmed.
+		//All that remains is to separate out the numbers, read them, and write them to a PhysicsVector object.
+		//This is trivial for 1D vectors, and in this case our entire inputString string should just be the number we want.
+		if constexpr (dim == 1) {
+			inVector.setAt(0, getNumber(inputString));
+		}
+		//Otherwise we just read every number up to each comma, and set the vector accordingly
+		else {
+			for (std::size_t i = 0; i < dim; ++i) {
+				auto firstComma{ inputString.find_first_of(',') };
+				std::string_view firstTerm{ inputString.substr(0,firstComma) };
+				inputString.remove_prefix(firstComma + 1);
+				inVector.setAt(i, getNumber(firstTerm));
+			}
+		}
+		return true;
+	}
+
+	template<std::size_t dim>
+	PhysicsVector<dim> readVector(std::string_view inString) {
+		PhysicsVector<dim> out{};
+		readVector(inString, out);
+		return out;
+	}
+
+
+		
+
+
+
+
 }
 
 

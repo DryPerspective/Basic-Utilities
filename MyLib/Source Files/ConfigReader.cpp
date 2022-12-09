@@ -2,7 +2,7 @@
 
 namespace IO {
 
-	ConfigReader::ConfigReader(const std::string_view fileName, bool removeWS, bool setLowerCase) : m_removeWS{ removeWS }, m_lower{ setLowerCase } {
+	ConfigReader::ConfigReader(std::string_view fileName, ConfigReader::flags inFlags) : m_flags{ inFlags } {
 		addFileToMap(fileName);
 	}
 
@@ -10,18 +10,34 @@ namespace IO {
 		m_values.clear();
 	}
 
-	void ConfigReader::addFile(const std::string_view fileName) {
+	void ConfigReader::addFile(std::string_view fileName) {
 		addFileToMap(fileName);
 	}
 
-	void ConfigReader::toLower(std::string& inString) const {
+	void ConfigReader::toLower(std::string& inString) {
 		for (char& letter : inString) {
 			if (letter >= 65 && letter <= 90)letter += 32;
 		}
 	}
 
+	void toUpper(std::string& inString) {
+		for (char& letter : inString) {
+			if (letter >= 97 && letter <= 122)letter -= 32;
+		}
+	}
 
-	void ConfigReader::addFileToMap(const std::string_view fileName) {
+	std::string ConfigReader::trim(const std::string& str, std::string_view whitespace) {
+		const auto strBegin = str.find_first_not_of(whitespace);
+		if (strBegin == std::string::npos) return "";
+
+		const auto strEnd = str.find_last_not_of(whitespace);
+		const auto strRange = strEnd - strBegin + 1;
+
+		return str.substr(strBegin, strRange);
+	}
+
+
+	void ConfigReader::addFileToMap(std::string_view fileName) {
 		std::ifstream file(std::string(fileName).c_str());
 		if (file.fail()) {
 			std::string errMsg{ "Error: File " };
@@ -32,12 +48,12 @@ namespace IO {
 		std::string currentLine;
 		while (std::getline(file, currentLine)) {
 			//Remove WS if needed.
-			if (m_removeWS) currentLine.erase(std::remove_if(currentLine.begin(), currentLine.end(), isspace), currentLine.end());
+			if (m_flags & flags::removeAllWs) currentLine.erase(std::remove_if(currentLine.begin(), currentLine.end(), isspace), currentLine.end());
 
 			//Ignore commented or empty lines
 			if (currentLine[0] == '#' || currentLine.empty())continue;
 
-			if (m_lower)toLower(currentLine);
+			if (m_flags & caseInsensitive)toLower(currentLine);
 
 			//Trim down comments at the end of lines
 			auto comment{ currentLine.find('#') };
@@ -54,6 +70,11 @@ namespace IO {
 			std::string lineAfterEquals{ currentLine.substr(splitPos + 1, currentLine.length()) };
 			if (lineBeforeEquals.empty() || lineAfterEquals.empty()) throw ConfigReader::ConfigException("Error: Empty line before or after = in config file");
 
+			//If we're not otherwise keeping padding around the terms, we trim them down to just their text.
+			if (!(m_flags & keepAllPadding)) {
+				lineBeforeEquals = trim(lineBeforeEquals);
+				lineAfterEquals = trim(lineAfterEquals);
+			}
 
 			//And insert them
 			m_values.insert(std::make_pair(lineBeforeEquals, lineAfterEquals));
