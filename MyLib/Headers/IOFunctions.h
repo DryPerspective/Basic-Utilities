@@ -25,36 +25,41 @@ namespace IO {
 
 	// -------TEMPLATED FUNCTIONS------------
 
+	//Quick trait for a value which can be extracted from an istream.
+	namespace {
+		template<typename, typename = std::void_t<>>
+		struct isExtractible : std::false_type {};
+
+		template<typename T>
+		struct isExtractible<T, std::void_t<decltype(std::declval<std::istream&>() >> std::declval<T&>())>> : std::true_type {};
+	}
+
 	//A basic boilerplate function to ignore a line in a general istream.
 	template<typename T>
-	void ignoreLine(std::basic_istream<T>& inStream) {
+	void ignoreLine(std::basic_istream<T>& inStream = std::cin) {
 		inStream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 	}
 
 	//Boilerplate to get a value from the console with some input validation.
-	template<typename T>
+	template<typename T, std::enable_if_t<isExtractible<T>::value, bool> = true>
 	void getFromConsole(T& inValue) noexcept {
 		if constexpr (std::is_same_v<T, bool>) {
-			T = getYesNo();
+			inValue = getYesNo();
 		}
-		else if constexpr (std::is_arithmetic_v<T>) {
+		else {
 			while (true) {
 				std::cin >> inValue;
-				ignoreLine(std::cin);	//Ignore anything left in the buffer
+
 				if (std::cin.fail()) {	//If extraction fails
 					std::cin.clear();	//Reset our input stream flag
+					ignoreLine(std::cin);	//Ignore anything left in the buffer
 					std::cout << "Error: Please enter a valid " << typeid(T).name() << " value. \n";
 				}
 				else {
+					ignoreLine(std::cin);	//Ignore anything left in the buffer
 					return;
 				}
 			}
-		}
-		else if constexpr (std::is_same_v<T, std::string>) {
-			std::getline(std::cin, inValue);
-		}
-		else {
-			std::clog << "Error: getFromConsole will not read " << typeid(T).name() << " types.\n";
 		}
 	}
 
@@ -98,6 +103,13 @@ namespace IO {
 		return output;
 	}
 
+	//Non-throwing overload which returns a bool to determine success or failure
+	template<typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
+	bool getFromChars(std::string_view inputString, T& value, int base = 10) noexcept {
+		auto [ptr, errc] {std::from_chars(inputString.data(), inputString.data() + inputString.length(), value, base)};
+		if (ptr == inputString.data() + inputString.length()) return true;
+		else return false;
+	}
 
 	//And on to floating point types.
 	template<typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
@@ -122,6 +134,13 @@ namespace IO {
 		auto result{ std::from_chars(inputString.data, inputString.data() + inputString.length(), output, fmt) };
 		errc = result.errc;
 		return output;
+	}
+
+	template<typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
+	bool getFromChars(std::string_view inputString, T& value, std::chars_format fmt = std::chars_format::general) noexcept {
+		auto [ptr, errc] {std::from_chars(inputString.data(), inputString.data() + inputString.length(), value, fmt)};
+		if (ptr == inputString.data() + inputString.length()) return true;
+		else return false;
 	}
 
 
