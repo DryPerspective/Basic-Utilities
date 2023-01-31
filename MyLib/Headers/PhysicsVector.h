@@ -113,11 +113,13 @@ namespace Physics{
 			}
 
 			//Initialiser list construction
-			PVData(const std::initializer_list<double>& inList) {
+			PVData(const std::initializer_list<double>& inList) : m_components{ inList } {
+				/*
 				m_components.reserve(dim);
 				for (double d : inList) {
 					m_components.push_back(d);
 				}
+				*/
 				if (inList.size() != dim)this->matchVectorSize();   //As it is possible for the initialiser list to be a different size from the vector we are creating, we use this.
 			}
 
