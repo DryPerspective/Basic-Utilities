@@ -129,12 +129,17 @@ namespace Physics{
 			}
 
 			//Constant operator[] which returns by value and does not modify
-			double operator[](const std::size_t inIndex) const {
+			double operator[](const std::size_t inIndex) const & {
 				return m_components[inIndex];
 			}
 			
 			//Non-const which returns by reference and can modify.
-			double& operator[](const std::size_t inIndex) {
+			double& operator[](const std::size_t inIndex) & {
+				return m_components[inIndex];
+			}
+
+			//rvalue to prevent a dangling reference
+			double operator[](const std::size_t inIndex)&& {
 				return m_components[inIndex];
 			}
 			
@@ -211,7 +216,7 @@ namespace Physics{
 			}
 
 			//Accessor without "bounds checking" and can modify
-			double& operator[](const std::size_t inIndex) {
+			double& operator[](const std::size_t inIndex) & {
 				switch (inIndex) {
 				case 0:
 					return m_X;
@@ -224,7 +229,7 @@ namespace Physics{
 			}
 
 			//Accessor without "bounds checking" which preseves const-ness
-			double operator[](const std::size_t inIndex) const {
+			double operator[](const std::size_t inIndex) const & {
 				switch (inIndex) {
 				case 0:
 					return m_X;
@@ -234,6 +239,21 @@ namespace Physics{
 					return m_Z;
 				default:
 					return 0;			//We must return something so we return 0 for a failed attempt.
+
+				}
+			}
+
+			//rvalue variant
+			double operator[](const std::size_t inIndex) && {
+				switch (inIndex) {
+				case 0:
+					return m_X;
+				case 1:
+					return m_Y;
+				case 2:
+					return m_Z;
+				default:
+					return 0;			
 
 				}
 			}
@@ -298,7 +318,7 @@ namespace Physics{
 			}
 
 			//Accessor without "bounds checking" that can modify
-			double& operator[](const std::size_t inIndex) {
+			double& operator[](const std::size_t inIndex) & {
 				switch (inIndex) {
 				case 0:
 					return m_X;
@@ -308,7 +328,7 @@ namespace Physics{
 			}
 
 			//Accessor without "bounds checking" that cannot modify
-			double operator[](const std::size_t inIndex) const {
+			double operator[](const std::size_t inIndex) const & {
 				switch (inIndex) {
 				case 0:
 					return m_X;
@@ -318,6 +338,19 @@ namespace Physics{
 					return 0;
 				}
 			}
+
+			//rvalue accessor
+			double operator[](const std::size_t inIndex) && {
+				switch (inIndex) {
+				case 0:
+					return m_X;
+				case 1:
+					return m_Y;
+				default:
+					return 0;
+				}
+			}
+
 			//Setter with "bounds checking" - since operator[] returns a reference, that should be used for non-bounds-checking sets.
 			void setAt(const std::size_t inIndex, const double inValue) {
 				if (inIndex > 2) throw std::out_of_range("Attempt to set value out of range of vector");
@@ -476,11 +509,15 @@ namespace Physics{
 			return outVector;
 		}
 		//Operator[] to round out accessing the data. Mirroring the std::vector, operator[] does no bounds checking.
-		double& operator[](const std::size_t index) {
+		double& operator[](const std::size_t index) & {
 			return m_components[index];
 		}
 		//Operator[] with const-ness.
-		double operator[](const std::size_t inIndex) const {
+		double operator[](const std::size_t inIndex) const & {
+			return m_components[inIndex];
+		}
+		//rvalues
+		double operator[](const std::size_t inIndex) && {
 			return m_components[inIndex];
 		}
 		//As above, operator<< calls the print() function.
