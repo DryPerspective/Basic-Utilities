@@ -39,20 +39,9 @@
 #include<stdexcept>
 #include<sstream>
 
+#include "Traits.h"
 
-	//A trait used to determine whether a generic class T supports extraction from an istream.
-	//We only want internal linkage for this trait as it is specifically intended for use by this class only.
-	namespace {
 
-		template<typename, typename = std::void_t<>>
-		struct hasExtract : std::false_type {};
-
-		template<typename T>
-		struct hasExtract<T, std::void_t<decltype(std::declval<std::istream&>() >> std::declval<T&>())>> : std::true_type {};
-
-		template<typename T>
-		constexpr inline bool hasExtract_v{ hasExtract<T>::value };
-	}
 
 	namespace IO {
 
@@ -239,7 +228,7 @@
 					T temp{ valueInMap };
 					inVariable = temp;
 				}
-				else if constexpr (hasExtract_v<T>) {
+				else if constexpr (dp::isExtractible_v<T>) {
 					std::stringstream sstr;
 					sstr << valueInMap;
 					sstr >> inVariable;
@@ -251,7 +240,7 @@
 					else strcpy_s(inVariable, valueInMap.c_str());
 				}
 				*/
-				else throw ConfigReader::ConfigException("Error - readValue called on unsupported type.");
+				else static_assert(dp::dependentFalse<T>, "ConfigReader::readValue called with unsupported type");
 
 			}
 

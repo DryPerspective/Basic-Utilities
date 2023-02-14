@@ -2,7 +2,7 @@
 
 namespace IO {
 
-	bool getYesNo() noexcept {
+	bool getYesNo() {
 		char input;
 		while (true) {
 			getFromConsole(input);
@@ -27,7 +27,7 @@ namespace IO {
 		}
 	}
 
-	bool getBinaryDecision(const std::string& trueValues, const std::string& falseValues) noexcept
+	bool getBinaryDecision(const std::string& trueValues, const std::string& falseValues)
 	{
 		char input;
 		while (true) {

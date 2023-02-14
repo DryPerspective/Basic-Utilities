@@ -13,26 +13,20 @@
 #include <string_view>
 #include <charconv>
 
+#include "Traits.h"
+
 namespace IO {
 
 	//A little crude, but this will read console input for a simple bool decision.
-	bool getYesNo() noexcept;
+	bool getYesNo();
 
 	//A variation of the above function for custom input and decisions through the console.
 	//E.g. the decision to hit or stand in blackjack is more easily recognised by "hit" or "stand" rather than a variation of "yes" and "no".
-	bool getBinaryDecision(const std::string& trueValues, const std::string& falseValues) noexcept;
+	bool getBinaryDecision(const std::string& trueValues, const std::string& falseValues);
 
 
 	// -------TEMPLATED FUNCTIONS------------
 
-	//Quick trait for a value which can be extracted from an istream.
-	namespace {
-		template<typename, typename = std::void_t<>>
-		struct isExtractible : std::false_type {};
-
-		template<typename T>
-		struct isExtractible<T, std::void_t<decltype(std::declval<std::istream&>() >> std::declval<T&>())>> : std::true_type {};
-	}
 
 	//A basic boilerplate function to ignore a line in a general istream.
 	template<typename T>
@@ -41,8 +35,8 @@ namespace IO {
 	}
 
 	//Boilerplate to get a value from the console with some input validation.
-	template<typename T, std::enable_if_t<isExtractible<T>::value, bool> = true>
-	void getFromConsole(T& inValue) noexcept {
+	template<typename T, std::enable_if_t<dp::isExtractible<T>::value, bool> = true>
+	void getFromConsole(T& inValue) {
 		if constexpr (std::is_same_v<T, bool>) {
 			inValue = getYesNo();
 		}
@@ -65,7 +59,7 @@ namespace IO {
 
 	//Same as above except for cases of returning the input value rather than passing it in.
 	template<typename T>
-	T getFromConsole() noexcept {
+	T getFromConsole() {
 		T input;
 		return getFromConsole(input); 
 	}

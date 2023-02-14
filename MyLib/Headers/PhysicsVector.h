@@ -652,6 +652,7 @@ namespace Physics{
 
 	/*
 	* A pair of templated structs to easily determine if a templated type is a PhysicsVector without confining its dimension
+	* Since this is so absolutely exclusive to PhysicsVector it belongs here rather than in the general traits library
 	*/
 	template <typename T>
 	struct is_PhysicsVector : std::false_type {};

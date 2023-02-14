@@ -25,7 +25,7 @@
     <ClInclude Include="Headers\MultiTimer.h" />
     <ClInclude Include="Headers\PhysicsVector.h" />
     <ClInclude Include="Headers\SimpleTimer.h" />
-    <ClInclude Include="Headers\MiscUtils.h" />
+    <ClInclude Include="Headers\Traits.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source Files\BigInt.cpp" />
@@ -94,7 +94,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Users\MJTay\source\repos\MyLib\MyLib\Headers;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\matth_o3dlweh\source\repos\Basic-Utilities\MyLib\Headers;C:\Users\MJTay\source\repos\MyLib\MyLib\Headers;$(IncludePath)</IncludePath>
     <SourcePath>C:\Users\MJTay\source\repos\MyLib\MyLib\Source Files;$(SourcePath)</SourcePath>
     <OutDir>.</OutDir>
   </PropertyGroup>
