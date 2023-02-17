@@ -1,6 +1,6 @@
 #include "ConfigReader.h"
 
-namespace IO {
+namespace dp {
 
 	ConfigReader::ConfigReader(std::string_view fileName, ConfigReader::flags inFlags) : m_flags{ inFlags } {
 		addFileToMap(fileName);

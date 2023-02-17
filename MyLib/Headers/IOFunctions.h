@@ -92,7 +92,7 @@ namespace IO {
 	T getFromChars(std::string_view inputString, std::errc& errc, int base = 10) noexcept {
 		T output{};
 
-		auto result{ std::from_chars(inputString.data, inputString.data() + inputString.length(), output, base) };
+		auto result{ std::from_chars(inputString.data(), inputString.data() + inputString.length(), output, base)};
 		errc = result.errc;
 		return output;
 	}
@@ -125,7 +125,7 @@ namespace IO {
 	template<typename T, std::enable_if_t<std::is_floating_point_v<T>, bool> = true>
 	T getFromChars(std::string_view inputString, std::errc& errc, std::chars_format fmt = std::chars_format::general) noexcept {
 		T output{};
-		auto result{ std::from_chars(inputString.data, inputString.data() + inputString.length(), output, fmt) };
+		auto result{ std::from_chars(inputString.data(), inputString.data() + inputString.length(), output, fmt)};
 		errc = result.errc;
 		return output;
 	}

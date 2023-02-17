@@ -1,6 +1,6 @@
 #include "BigInt.h"
 
-namespace numeric {
+namespace dp {
 
 	/*
 	* PRIVATE FUNCTIONS

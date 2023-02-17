@@ -26,7 +26,7 @@
 
 
 
-namespace Physics{
+namespace dp{
 
 	//Forward declarations to resolve potential dependency issues.
 
@@ -658,7 +658,7 @@ namespace Physics{
 	struct is_PhysicsVector : std::false_type {};
 
 	template <std::size_t N>
-	struct is_PhysicsVector<Physics::PhysicsVector<N>> : std::true_type {};
+	struct is_PhysicsVector<dp::PhysicsVector<N>> : std::true_type {};
 
 	template<typename T>
 	constexpr inline bool is_PhysicsVector_v {is_PhysicsVector<T>::value};
@@ -680,9 +680,9 @@ namespace Physics{
 	//Specific needs in specific projects can be met by providing a specialisation of this template which is specific to that project.
 	//This function returns true if the vector was read in correctly, and false otherwise. In the event of an invalid call, it sets the input vector to {0,0,...0};
 	template<std::size_t dim>
-	bool readVector(std::string_view inputString, Physics::PhysicsVector<dim>& inVector) {
+	bool readVector(std::string_view inputString, dp::PhysicsVector<dim>& inVector) {
 		//First, validate that the string is of the correct format (X,Y,Z)
-		std::regex vectorReg{ "[\\{\\[\\(<]?([0-9]*[\\.]?[0-9]*[\\,]){0,}[0-9]+[\\.]?[0-9]*[\\}\\]\\)>]?" };
+		std::regex vectorReg{ R"([\{\[\(<]?(\d*\.?\d*\,){0,}\d+\.?\d*[\}\]\)>]?)" };
 		//Optionally one of [{(<, then any amount of (0-9, optionally with a . and another [0-9] then ,), then another potentially decimal number and optionally a closing bracket
 		if (!std::regex_match(std::string(inputString), vectorReg)) {
 			inVector = PhysicsVector<dim>{};
@@ -725,15 +725,25 @@ namespace Physics{
 		readVector(inString, out);
 		return out;
 	}
+}
 
+namespace Physics {
+	
+	template<std::size_t dim>
+	using PhysicsVector [[deprecated("Access to PhysicsVector via namespace Physics is deprecated. Use namespace dp instead")]] = dp::PhysicsVector;
 
-		
+	template<std::size_t dim>
+	[[deprecated("PhysicsVector functionality now exists in namespace dp")]] bool readVector(std::string_view inStr, PhysicsVector<dim>& inPv) { return dp::readVector(inStr, inPv); }
 
+	template<std::size_t dim>
+	[[deprecated("PhysicsVector functionality now exists in namespace dp")]] PhysicsVector<dim> readVector(std::string_view inStr) { return dp::readVector(inStr); };
+
+	template<typename T>
+	using is_PhysicsVector [[deprecated("PhysicsVector functionality now exists in namespace dp")]] = dp::is_PhysicsVector;
 
 
 
 }
-
 
 
 

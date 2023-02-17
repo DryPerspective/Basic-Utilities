@@ -43,7 +43,7 @@
 
 
 
-	namespace IO {
+	namespace dp {
 
 		class ConfigReader
 		{
@@ -90,9 +90,9 @@
 					//First deduce the format of our final result.
 					auto format{ std::chars_format::general };
 					//Regex for scientific format numbers. It can contain any number of numerical digits, optionally a decimal point, either e or E for exponent, optionally a -, then any number of digits.
-					std::regex scientific{ "[\\-]?[0-9]+[\\.]?[0-9]*[eE][\\-]?[0-9]+" };
+					std::regex scientific{ R"(\-?\d+\.?\d*[eE]\-?\d+)" };
 					//Ditto for hex. Assumes that hex numbers are prefixed with "0x" in the file
-					std::regex hex{ "0x[\\-]?[0-9a-fA-F]+[\\.]?[0-9a-fA-F]*" };
+					std::regex hex{ R"(0x\-?[\da-fA-F]+\.?[\da-fA-F]*)" };
 					if (std::regex_match(std::string(valueInFile), scientific))format = std::chars_format::scientific;
 					else if (std::regex_match(std::string(valueInFile), hex)) {
 						format = std::chars_format::hex;
@@ -265,6 +265,9 @@
 
 	}
 
+	namespace IO {
+		using ConfigReader [[deprecated("ConfigReader in namespace IO is deprecated. Use namespace dp for ConfigReader")]] = dp::ConfigReader;
+	}
 
 
 

@@ -11,7 +11,7 @@
 #include<string>
 #include<limits>
 
-namespace numeric {
+namespace dp {
 
 	class BigInt
 	{
@@ -151,6 +151,10 @@ namespace numeric {
 
 
 	};
+}
+
+namespace numeric {
+	using BigInt [[deprecated("BigInt now exists in namespace dp")]] = dp::BigInt;
 }
 
 #endif
