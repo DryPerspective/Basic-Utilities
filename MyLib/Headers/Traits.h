@@ -1,3 +1,6 @@
+#ifndef DPTRAITS
+#define DPTRAITS
+
 #include <type_traits>
 #include <iostream>
 /*
@@ -41,3 +44,7 @@ namespace dp {
 
 
 }
+
+
+
+#endif
