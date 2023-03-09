@@ -24,6 +24,8 @@
 #include <regex>	//Used to analyse strings for PhysicsVector layout
 #include <charconv>
 
+#include "Traits.h"
+
 
 
 namespace dp{
@@ -582,7 +584,7 @@ namespace dp{
 		//The vector product. Again, this one has to return by value since an evaluation of (A x B) doesn't change the value of A or B.
 		//Unfortunately, the vector product is only well-defined for 3-dimensional vectors, though a version does exist for seven dimensions.
 		PhysicsVector<dim> vectorProduct(const PhysicsVector<dim>& inVector) const {
-			if constexpr (dim != 3 && dim != 7) throw std::logic_error("Error: Vector Product only defined for 3- and 7- dimensional vectors.");
+			if constexpr (dim != 3 && dim != 7) static_assert(dp::dependentFalse<PhysicsVector<dim>>::value, "Error: Vector Product only defined for 3- and 7- dimensional vectors.");
 			else if constexpr (dim == 3) {																									//Because this can't be generalised to n dimensions, have to just compute the specific cases.
 				double newX{ (this->m_components[1] * inVector.m_components[2]) - (this->m_components[2] * inVector.m_components[1]) };
 				double newY{ (this->m_components[2] * inVector.m_components[0]) - (this->m_components[0] * inVector.m_components[2]) };		//Note the negative sign is factored in, i.e. -(a1b3-a3b1) = (a3b1-a1b3)
@@ -727,23 +729,25 @@ namespace dp{
 	}
 }
 
+
 namespace Physics {
 	
 	template<std::size_t dim>
-	using PhysicsVector [[deprecated("Access to PhysicsVector via namespace Physics is deprecated. Use namespace dp instead")]] = dp::PhysicsVector;
+	using PhysicsVector [[deprecated("Access to PhysicsVector via namespace Physics is deprecated. Use namespace dp instead")]] = dp::PhysicsVector<dim>;
 
 	template<std::size_t dim>
-	[[deprecated("PhysicsVector functionality now exists in namespace dp")]] bool readVector(std::string_view inStr, PhysicsVector<dim>& inPv) { return dp::readVector(inStr, inPv); }
+	[[deprecated("PhysicsVector functionality now exists in namespace dp")]] bool readVector(std::string_view inStr, dp::PhysicsVector<dim>& inPv) { return dp::readVector(inStr, inPv); }
 
 	template<std::size_t dim>
-	[[deprecated("PhysicsVector functionality now exists in namespace dp")]] PhysicsVector<dim> readVector(std::string_view inStr) { return dp::readVector(inStr); };
+	[[deprecated("PhysicsVector functionality now exists in namespace dp")]] dp::PhysicsVector<dim> readVector(std::string_view inStr) { return dp::readVector(inStr); };
 
 	template<typename T>
-	using is_PhysicsVector [[deprecated("PhysicsVector functionality now exists in namespace dp")]] = dp::is_PhysicsVector;
+	using is_PhysicsVector [[deprecated("PhysicsVector functionality now exists in namespace dp")]] = dp::is_PhysicsVector<T>;
 
 
 
 }
+
 
 
 
