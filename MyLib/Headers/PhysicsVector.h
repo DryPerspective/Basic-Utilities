@@ -19,17 +19,16 @@
 #include <vector>
 #include <array>
 #include <initializer_list>
-#include <iostream>	//For overloading operator<<
-#include <cmath>	//For sqrt() and pow()
-#include <numeric>	//For the inner product
-#include <limits>	//For epsilon function in getUnitVector
-#include <regex>	//Used to analyse strings for PhysicsVector layout
-#include <charconv>
+#include <iostream>	
+#include <cmath>	
+#include <numeric>		//For the inner product
+#include <limits>		//For epsilon function in getUnitVector
+#include <regex>		//Used to analyse strings - regex not used elsewhere
+#include <charconv>		//Here's hoping your compiler supports floating point conversions
 #include <type_traits>
 #include <algorithm>
 #include <functional>
 
-#include "Traits.h"
 
 
 
@@ -69,12 +68,12 @@ namespace dp {
 		//----------------PHYSICSVECTOR FUNCTIONS--------------------------	
 
 
-		//Printing uses this virtual function which is called by operator<<. This allows any derived classes to easily print differently.
-		//This function is intended to only be called internally so is kept private.
+		//Virtual print, intended for possibly derived classes to inherit from it.
 		virtual auto print(std::ostream& out) const -> std::ostream& {
 			out << "(";
-			for (std::size_t i = 0; i < dim; ++i) {
-				out << m_components[i] << ",";
+			//In this instance, a raw range-for seemed like the more pleasant solution than needing a std::for_each, specifying a range, and constructing a lambda
+			for (auto elem : m_components) {
+				out << elem << ',';
 			}
 			out << '\b' << ")";
 			return out;
@@ -85,7 +84,7 @@ namespace dp {
 		/*
 		* Constructors.
 		*/
-		constexpr PhysicsVector() {
+		explicit constexpr PhysicsVector() {
 			if constexpr (dim <= MaxStackDims) {
 				m_components.fill(0);
 			}
@@ -111,7 +110,7 @@ namespace dp {
 			std::copy(inList.begin(), inList.end(), m_components.begin());
 		}
 
-		constexpr PhysicsVector(std::string_view inString) : PhysicsVector() {
+		PhysicsVector(std::string_view inString) : PhysicsVector() {
 			readVector(inString, *this);
 		}
 
@@ -122,11 +121,9 @@ namespace dp {
 
 
 		/*
-		* Setters and getters. The choice to keep the raw component std::vector private is intentional to prevent attempts to resize it and cause a mismatch between how many elements it contains and how many the functions can handle.
-		* However the elements themselves should all be accessible.
+		* Setters and getters. The choice to keep the raw component std::vector private is intentional to prevent attempts to resize it and cause an inconsistent state
 		* Also, since X, Y, and Z are so universally known as labels when dealing with vectors, I include specific functions for those elements.
 		* This should help with readability in use cases where we are clearly working with a particular dimension - getX() is immediately more recognisible than getAt(0).
-		* Also note that operator[] is also overloaded in the operator overloads section to effect the expected result.
 		*/
 
 
@@ -157,7 +154,7 @@ namespace dp {
 		constexpr auto getZ() const -> double {
 			return getAt(2);
 		}
-		constexpr auto dimension() const -> double {
+		constexpr auto dimension() const -> std::size_t {
 			return dim;
 		}
 
@@ -184,7 +181,7 @@ namespace dp {
 			return m_components[inIndex];
 		}
 
-		auto swap(PhysicsVector<dim>& inVector) noexcept {
+		constexpr auto swap(PhysicsVector<dim>& inVector) noexcept {
 			m_components.swap(inVector.m_components);
 		}
 
@@ -224,12 +221,12 @@ namespace dp {
 		}
 
 		constexpr friend auto operator+=(PhysicsVector<dim>& lhsVector, const PhysicsVector<dim>& rhsVector) -> PhysicsVector<dim>& {
-			std::transform(lhsVector.m_components.begin(), lhsVector.m_components.end(), rhsVector.m_components.cbegin(), lhsVector.m_components.begin(), std::plus<double>{});
+			std::transform(lhsVector.m_components.cbegin(), lhsVector.m_components.cend(), rhsVector.m_components.cbegin(), lhsVector.m_components.begin(), std::plus<double>{});
 			return lhsVector;
 		}
 
 		constexpr friend auto operator-=(PhysicsVector<dim>& lhsVector, const PhysicsVector<dim>& rhsVector) -> PhysicsVector<dim>& {
-			std::transform(lhsVector.m_components.begin(), lhsVector.m_components.end(), rhsVector.m_components.cbegin(), lhsVector.m_components.begin(), std::minus<double>{});
+			std::transform(lhsVector.m_components.cbegin(), lhsVector.m_components.cend(), rhsVector.m_components.cbegin(), lhsVector.m_components.begin(), std::minus<double>{});
 			return lhsVector;
 		}
 
@@ -246,11 +243,11 @@ namespace dp {
 		*/
 		//First the length squared - kept in a separate function to prevent unnecessary square rooting and then squaring back up again.
 		constexpr auto lengthSquared() const -> double {
-			return std::accumulate(m_components.cbegin(), m_components.cend(), 0.0, [](double acc, double val) { return acc + pow(val, 2); });
+			return std::accumulate(m_components.cbegin(), m_components.cend(), 0.0, [](double acc, double val) { return acc + std::pow(val, 2); });
 		}
 		//Then the actual length of the vector.
 		constexpr auto length() const -> double {
-			return sqrt(this->lengthSquared());		//No need for checking for negatives since the squares of the components should always be positive (or 0)
+			return std::sqrt(this->lengthSquared());		//No need for checking for negatives since the squares of the components should always be positive (or 0)
 		}
 		//And an alias of length since the underlying property is also known universally by that name.
 		constexpr auto magnitude() const -> double {
@@ -264,8 +261,8 @@ namespace dp {
 		//The vector product. Again, this one has to return by value since an evaluation of (A x B) doesn't change the value of A or B.
 		//Unfortunately, the vector product is only well-defined for 3-dimensional vectors, though a version does exist for seven dimensions.
 		constexpr auto vectorProduct(const PhysicsVector<dim>& inVector) const -> PhysicsVector<dim> {
-			if constexpr (dim != 3 && dim != 7) static_assert(dp::dependentFalse<PhysicsVector<dim>>::value, "Error: Vector Product only defined for 3- and 7- dimensional vectors.");
-			else if constexpr (dim == 3) {																									//Because this can't be generalised to n dimensions, have to just compute the specific cases.
+			static_assert(dim == 3 || dim == 7, "Error: Vector Product only defined for 3- and 7- dimensional vectors.");
+			if constexpr (dim == 3) {																									//Because this can't be generalised to n dimensions, have to just compute the specific cases.
 				double newX{ (this->m_components[1] * inVector.m_components[2]) - (this->m_components[2] * inVector.m_components[1]) };
 				double newY{ (this->m_components[2] * inVector.m_components[0]) - (this->m_components[0] * inVector.m_components[2]) };		//Note the negative sign is factored in, i.e. -(a1b3-a3b1) = (a3b1-a1b3)
 				double newZ{ (this->m_components[0] * inVector.m_components[1]) - (this->m_components[1] * inVector.m_components[0]) };
@@ -323,20 +320,27 @@ namespace dp {
 			unitVector.scaleVector(1 / unitVector.magnitude());
 			return unitVector;
 		}
+
 		//Static vector calculus functions. Sometimes it makes more sense in code to do innerProduct(Vec1,Vec2) than Vec1.innerProduct(Vec2).
-		constexpr static auto innerProduct(const PhysicsVector<dim>& inVector1, const PhysicsVector<dim>& inVector2) -> double {
+		static constexpr auto innerProduct(const PhysicsVector<dim>& inVector1, const PhysicsVector<dim>& inVector2) -> double {
 			return inVector1.innerProduct(inVector2);
 		}
-		constexpr static auto vectorProduct(const PhysicsVector<dim>& inVector1, const PhysicsVector<dim>& inVector2) -> PhysicsVector<dim> {
+		static constexpr auto vectorProduct(const PhysicsVector<dim>& inVector1, const PhysicsVector<dim>& inVector2) -> PhysicsVector<dim> {
 			return inVector1.vectorProduct(inVector2);
 		}
 
 
 
+
 	};
 
+
+
+
+
+
 	/*
-	* A pair of templated structs to easily determine if a templated type is a PhysicsVector without confining its dimension
+	* A quick trait to identify specialisations of the template
 	* Since this is so absolutely exclusive to PhysicsVector it belongs here rather than in the general traits library
 	*/
 	template <typename T>
@@ -410,7 +414,7 @@ namespace dp {
 	}
 
 	template<std::size_t dim>
-	auto swap(PhysicsVector<dim>& lhs, PhysicsVector<dim>& rhs) noexcept {
+	constexpr auto swap(PhysicsVector<dim>& lhs, PhysicsVector<dim>& rhs) noexcept {
 		lhs.swap(rhs);
 	}
 
