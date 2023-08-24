@@ -27,7 +27,7 @@
 #include <charconv>		//Here's hoping your compiler supports floating point conversions
 #include <type_traits>
 #include <algorithm>
-#include <functional>
+#include <functional>  
 
 
 
@@ -45,13 +45,12 @@ namespace dp {
 	template<std::size_t dim>
 	PhysicsVector<dim> readVector(std::string_view);
 
-
-
-
-
 	template <std::size_t dim>
-	class PhysicsVector
+	class PhysicsVector final
 	{
+
+		static_assert(dim > 0, "PhysicsVector dimension must be a positive number");
+
 	private:
 
 		//The maximum number of dimensions a PhysicsVector should have before we start heap-allocating them.
@@ -68,8 +67,8 @@ namespace dp {
 		//----------------PHYSICSVECTOR FUNCTIONS--------------------------	
 
 
-		//Virtual print, intended for possibly derived classes to inherit from it.
-		virtual auto print(std::ostream& out) const -> std::ostream& {
+
+		auto print(std::ostream& out) const -> std::ostream& {
 			out << "(";
 			//In this instance, a raw range-for seemed like the more pleasant solution than needing a std::for_each, specifying a range, and constructing a lambda
 			for (auto elem : m_components) {
@@ -114,9 +113,7 @@ namespace dp {
 			readVector(inString, *this);
 		}
 
-		//Virtual default destructor.
-		//Unfortunately no constexpr until C++20 :(
-		virtual ~PhysicsVector() noexcept = default;
+		~PhysicsVector() noexcept = default;
 
 
 
@@ -186,55 +183,36 @@ namespace dp {
 		}
 
 
-
 		/*
 		* Operator overloads
 		*/
+		// Clunky friend declarations are clunky, but I think free functions work better than members in this case, particularly as it allows for a
+		// neater implementation for some of them.
+		// But, the snappiest implementation requires access to m_components, so we need to be friends.
+		template<std::size_t dim>
+		friend constexpr auto operator==(const PhysicsVector<dim>&, const PhysicsVector<dim>&) -> bool;
 
+		template<std::size_t dim>
+		friend constexpr auto operator!=(const PhysicsVector<dim>&, const PhysicsVector<dim>&) -> bool;
 
-		//In an ordinary class, most of these these would most likely not be declared friend and kept outside of the class definition
-		//However, as this is a templated class, and as function templates will not be generated as needed to participate in overload resolution,
-		//the workaround is to declare them friend and fully define them inside the class, to ensure that when the class is generated from a template,
-		//all appropriate operator overload functions will be generated too.
+		template<std::size_t dim>
+		friend constexpr auto operator-(PhysicsVector<dim> inVector)->PhysicsVector<dim>;
 
-		//A vector is only equal if all of their respective components match.
-		friend constexpr auto operator==(const PhysicsVector<dim>& lhsVector, const PhysicsVector<dim>& rhsVector) -> bool {
-			if (&lhsVector == &rhsVector)return true;
-			return lhsVector.m_components == rhsVector.m_components;
-		}
-		friend constexpr auto operator!=(const PhysicsVector<dim>& lhsVector, const PhysicsVector<dim>& rhsVector) -> bool {
-			return !(lhsVector == rhsVector);
-		}
+		template<std::size_t dim>
+		friend constexpr auto operator+(PhysicsVector<dim> lhsVector, const PhysicsVector<dim>& rhsVector)->PhysicsVector<dim>;
 
-		//NB - pass by value as we need to make a copy anyway
-		friend constexpr auto operator-(PhysicsVector<dim> inVector) -> PhysicsVector<dim> {
-			std::transform(inVector.m_components.cbegin(), inVector.m_components.cend(), inVector.m_components.begin(), std::negate<double>{});
-			return inVector;
-		}
+		template<std::size_t dim>
+		friend constexpr auto operator-(PhysicsVector<dim> lhsVector, const PhysicsVector<dim>& rhsVector)->PhysicsVector<dim>;
 
-		constexpr friend auto operator+(PhysicsVector<dim> lhsVector, const PhysicsVector<dim>& rhsVector) -> PhysicsVector<dim> {
-			return lhsVector += rhsVector;
-		}
+		template<std::size_t dim>
+		friend constexpr auto operator+=(PhysicsVector<dim>& lhsVector, const PhysicsVector<dim>& rhsVector)->PhysicsVector<dim>&;
 
-		constexpr friend auto operator-(PhysicsVector<dim> lhsVector, const PhysicsVector<dim>& rhsVector) ->PhysicsVector<dim> {
-			return lhsVector -= rhsVector;
-		}
-
-		constexpr friend auto operator+=(PhysicsVector<dim>& lhsVector, const PhysicsVector<dim>& rhsVector) -> PhysicsVector<dim>& {
-			std::transform(lhsVector.m_components.cbegin(), lhsVector.m_components.cend(), rhsVector.m_components.cbegin(), lhsVector.m_components.begin(), std::plus<double>{});
-			return lhsVector;
-		}
-
-		constexpr friend auto operator-=(PhysicsVector<dim>& lhsVector, const PhysicsVector<dim>& rhsVector) -> PhysicsVector<dim>& {
-			std::transform(lhsVector.m_components.cbegin(), lhsVector.m_components.cend(), rhsVector.m_components.cbegin(), lhsVector.m_components.begin(), std::minus<double>{});
-			return lhsVector;
-		}
+		template<std::size_t dim>
+		friend constexpr auto operator-=(PhysicsVector<dim>& lhsVector, const PhysicsVector<dim>& rhsVector)->PhysicsVector<dim>&;
 
 		//As above, operator<< calls the print() function.
-		constexpr friend auto operator<<(std::ostream& out, const PhysicsVector<dim>& inVector) -> std::ostream& {
-			return inVector.print(out);
-		}
-
+		template<std::size_t dim>
+		friend constexpr auto operator<<(std::ostream& out, const PhysicsVector<dim>& inVector)->std::ostream&;
 
 
 		/*
@@ -334,8 +312,57 @@ namespace dp {
 
 	};
 
+	//Deduction guide
+	template<typename T, typename... U>
+	PhysicsVector(T, U...) -> PhysicsVector<1 + sizeof...(U)>;
 
 
+	//*Operator overloads*//
+	//A vector is only equal if all of their respective components match.
+	template<std::size_t dim>
+	constexpr auto operator==(const PhysicsVector<dim>& lhsVector, const PhysicsVector<dim>& rhsVector) -> bool {
+		if (&lhsVector == &rhsVector)return true;
+		return lhsVector.m_components == rhsVector.m_components;
+	}
+	template<std::size_t dim>
+	constexpr auto operator!=(const PhysicsVector<dim>& lhsVector, const PhysicsVector<dim>& rhsVector) -> bool {
+		return !(lhsVector == rhsVector);
+	}
+
+	//NB - pass by value as we need to make a copy anyway
+	template<std::size_t dim>
+	constexpr auto operator-(PhysicsVector<dim> inVector) -> PhysicsVector<dim> {
+		std::transform(inVector.m_components.cbegin(), inVector.m_components.cend(), inVector.m_components.begin(), std::negate<double>{});
+		return inVector;
+	}
+
+	template<std::size_t dim>
+	constexpr auto operator+(PhysicsVector<dim> lhsVector, const PhysicsVector<dim>& rhsVector) -> PhysicsVector<dim> {
+		return lhsVector += rhsVector;
+	}
+
+	template<std::size_t dim>
+	constexpr auto operator-(PhysicsVector<dim> lhsVector, const PhysicsVector<dim>& rhsVector) ->PhysicsVector<dim> {
+		return lhsVector -= rhsVector;
+	}
+
+	template<std::size_t dim>
+	constexpr auto operator+=(PhysicsVector<dim>& lhsVector, const PhysicsVector<dim>& rhsVector) -> PhysicsVector<dim>& {
+		std::transform(lhsVector.m_components.cbegin(), lhsVector.m_components.cend(), rhsVector.m_components.cbegin(), lhsVector.m_components.begin(), std::plus<double>{});
+		return lhsVector;
+	}
+
+	template<std::size_t dim>
+	constexpr auto operator-=(PhysicsVector<dim>& lhsVector, const PhysicsVector<dim>& rhsVector) -> PhysicsVector<dim>& {
+		std::transform(lhsVector.m_components.cbegin(), lhsVector.m_components.cend(), rhsVector.m_components.cbegin(), lhsVector.m_components.begin(), std::minus<double>{});
+		return lhsVector;
+	}
+
+	//As above, operator<< calls the print() function.
+	template<std::size_t dim>
+	constexpr auto operator<<(std::ostream& out, const PhysicsVector<dim>& inVector) -> std::ostream& {
+		return inVector.print(out);
+	}
 
 
 

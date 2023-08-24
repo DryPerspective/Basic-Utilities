@@ -94,8 +94,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Users\matth_o3dlweh\source\repos\Basic-Utilities\MyLib\Headers;C:\Users\MJTay\source\repos\MyLib\MyLib\Headers;$(IncludePath)</IncludePath>
-    <SourcePath>C:\Users\MJTay\source\repos\MyLib\MyLib\Source Files;$(SourcePath)</SourcePath>
+    <IncludePath>../MyLib/Headers;$(IncludePath)</IncludePath>
+    <SourcePath>../MyLib/Source Files;$(SourcePath)</SourcePath>
     <OutDir>.</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
