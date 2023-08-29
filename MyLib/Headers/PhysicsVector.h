@@ -46,7 +46,7 @@ namespace dp {
 	PhysicsVector<dim> readVector(std::string_view);
 
 	template <std::size_t dim>
-	class PhysicsVector final
+	class PhysicsVector
 	{
 
 		static_assert(dim > 0, "PhysicsVector dimension must be a positive number");
@@ -76,6 +76,13 @@ namespace dp {
 			}
 			out << '\b' << ")";
 			return out;
+		}
+		
+		//An internal "at" function (note, no bounds checking), used to cut down on code duplication by providing an underlying common function
+		//If we were in C++23 this would definitely be a public deducing this function
+		template <typename Self>
+		static auto& int_at(Self& self, const std::size_t index) {
+			return self.m_components[index];
 		}
 
 
@@ -132,33 +139,36 @@ namespace dp {
 			return m_components.at(inEntry);
 		}
 
-		//Get a general entry. We use vector::at() to syntactically mirror general use of containers.
-		constexpr decltype(auto) getAt(const std::size_t inEntry) const {
-			return this->at(inEntry);
-		}
-
-		constexpr decltype(auto) getAt(const std::size_t inEntry) {
-			return this->at(inEntry);
-		}
-
 		//And accessors for named dimensions.
-		constexpr auto getX() const -> double {
-			return getAt(0);
+		constexpr decltype(auto) x() const {
+			return int_at(*this, 0);
 		}
-		constexpr auto getY() const -> double {
-			return getAt(1);
+		constexpr decltype(auto) y() const {
+			return int_at(*this, 1);
 		}
-		constexpr auto getZ() const -> double {
-			return getAt(2);
+		constexpr decltype(auto) z() const {
+			return int_at(*this, 2);
 		}
+
+		constexpr decltype(auto) x() {
+			return int_at(*this, 0);
+		}
+		constexpr decltype(auto) y() {
+			return int_at(*this, 1);
+		}
+		constexpr decltype(auto) z() {
+			return int_at(*this, 2);
+		}
+
 		constexpr auto dimension() const -> std::size_t {
 			return dim;
 		}
 
 		//A general setter. 
-		constexpr auto setAt(const std::size_t inIndex, const double inValue) {
-			m_components[inIndex] = inValue;
+		constexpr auto setAt(std::size_t inIndex, double inValue) {
+			int_at(*this, inValue) = inValue;
 		}
+		/*
 		constexpr auto setX(const double XIn) {
 			setAt(0, XIn);
 		}
@@ -168,14 +178,15 @@ namespace dp {
 		constexpr auto setZ(const double ZIn) {
 			setAt(2, ZIn);
 		}
+		*/
 
 		//Operator[] to round out accessing the data. Mirroring the std::vector, operator[] does no bounds checking.
-		constexpr decltype(auto) operator[](const std::size_t index) {
-			return m_components[index];
+		constexpr decltype(auto) operator[](std::size_t index) {
+			return int_at(*this, index);
 		}
 		//Operator[] with const-ness.
-		constexpr decltype(auto) operator[](const std::size_t inIndex) const {
-			return m_components[inIndex];
+		constexpr decltype(auto) operator[](std::size_t index) const {
+			return int_at(*this, index);
 		}
 
 		constexpr auto swap(PhysicsVector<dim>& inVector) noexcept {
