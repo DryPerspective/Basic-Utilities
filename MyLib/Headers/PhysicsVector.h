@@ -460,25 +460,5 @@ namespace dp {
 }
 
 
-namespace Physics {
-
-	template<std::size_t dim>
-	using PhysicsVector [[deprecated("Access to PhysicsVector via namespace Physics is deprecated. Use namespace dp instead")]] = dp::PhysicsVector<dim>;
-
-	template<std::size_t dim>
-	[[deprecated("PhysicsVector functionality now exists in namespace dp")]] bool readVector(std::string_view inStr, dp::PhysicsVector<dim>& inPv) { return dp::readVector(inStr, inPv); }
-
-	template<std::size_t dim>
-	[[deprecated("PhysicsVector functionality now exists in namespace dp")]] dp::PhysicsVector<dim> readVector(std::string_view inStr) { return dp::readVector(inStr); };
-
-	template<typename T>
-	using is_PhysicsVector [[deprecated("PhysicsVector functionality now exists in namespace dp")]] = dp::is_PhysicsVector<T>;
-
-
-
-}
-
-
-
 
 #endif
