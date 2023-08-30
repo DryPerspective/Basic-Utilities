@@ -9,7 +9,7 @@ namespace dp {
 
 	void BigInt::trimLeadingZeroes() {
 		//To prevent a for loop which could execute indefinitely considering size_t is unsigned, we count up and use arithmetic to simulate counting down.
-		auto maxSize{ m_bits.size() };
+		const auto maxSize{ m_bits.size() };
 		for (std::size_t i = 0; i < maxSize; ++i) {
 			if (m_bits[maxSize - i - 1] == 0) m_bits.pop_back();//This should be a safe operation as popping m_bits[i] doesn't change the value returned by m_bits[i-1]
 			else break;										//Break after the first non-zero element as we only want to trim leading zeroes.

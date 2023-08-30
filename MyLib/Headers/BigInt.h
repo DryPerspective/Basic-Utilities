@@ -1,6 +1,6 @@
 #ifndef BIGINT
 #define BIGINT
-#pragma once
+
 /*
 * A "BigInt" class - a class which can represent an arbitrarily large (signed) integer. Intended only for cases where standard numerical types can't contain it as it is inherently
 * less performant than primitive types.

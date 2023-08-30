@@ -1,6 +1,6 @@
 #ifndef PHYSICSVECTOR_H
 #define PHYSICSVECTOR_H
-#pragma once
+
 
 /*
 * As the name suggests, the PhysicsVector class is used to hold a vector (the mathematical object of a number with direction) and various functions to manipulate it.

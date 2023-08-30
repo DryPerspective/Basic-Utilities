@@ -1,10 +1,10 @@
 #ifndef MYLIBSIMPLETIMER
 #define MYLIBSIMPLETIMER
-#pragma once
+
 
 #include <chrono>
 
-namespace utility {
+namespace dp {
 	/*
 	* The SimpleTimer class is, as the name suggests, an object which uses the <chrono> header to time code. It is a simple timer because it only keeps track of one point in time
 	* and can only return time elapsed relative to that point.

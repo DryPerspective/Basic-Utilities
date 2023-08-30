@@ -1,9 +1,15 @@
 #include "ConfigReader.h"
 
+#include <cctype>
+
 namespace dp {
 
 	ConfigReader::ConfigReader(std::string_view fileName, ConfigReader::flags inFlags) : m_flags{ inFlags } {
 		addFileToMap(fileName);
+	}
+
+	ConfigReader::ConfigReader(std::filesystem::path file, ConfigReader::flags inFlags) : m_flags{ inFlags } {
+		addFileToMap(file.string());
 	}
 
 	void ConfigReader::close() {
@@ -14,17 +20,14 @@ namespace dp {
 		addFileToMap(fileName);
 	}
 
-	void ConfigReader::toLower(std::string& inString) {
-		for (char& letter : inString) {
-			if (letter >= 65 && letter <= 90)letter += 32;
-		}
+	void ConfigReader::addFile(std::filesystem::path file) {
+		addFileToMap(file.string());
 	}
 
-	void toUpper(std::string& inString) {
-		for (char& letter : inString) {
-			if (letter >= 97 && letter <= 122)letter -= 32;
-		}
+	void ConfigReader::toLower(std::string& inString) {
+		std::transform(inString.begin(), inString.end(), inString.begin(), [](unsigned char c) -> char {return std::tolower(c); });
 	}
+
 
 	std::string ConfigReader::trim(const std::string& str, std::string_view whitespace) {
 		const auto strBegin = str.find_first_not_of(whitespace);

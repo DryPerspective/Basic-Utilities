@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "IOFunctions.h"
 
 namespace IO {
@@ -27,7 +29,7 @@ namespace IO {
 		}
 	}
 
-	bool getBinaryDecision(const std::string& trueValues, const std::string& falseValues)
+	bool getBinaryDecision(std::string_view trueValues, std::string_view falseValues)
 	{
 		char input;
 		while (true) {

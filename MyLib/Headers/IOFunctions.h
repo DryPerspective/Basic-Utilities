@@ -1,6 +1,6 @@
 #ifndef MYLIBIOFUNCTIONS
 #define MYLIBIOFUNCTIONS
-#pragma once
+
 
 /*
 * This file serves as a general purpose repository of some IO functions which don't belong in their own classes and structures. Admittedly not the most cohesive design.
@@ -8,8 +8,6 @@
 */
 
 #include <iostream>
-#include <string>
-#include <algorithm>
 #include <string_view>
 #include <charconv>
 
@@ -22,17 +20,11 @@ namespace IO {
 
 	//A variation of the above function for custom input and decisions through the console.
 	//E.g. the decision to hit or stand in blackjack is more easily recognised by "hit" or "stand" rather than a variation of "yes" and "no".
-	bool getBinaryDecision(const std::string& trueValues, const std::string& falseValues);
+	bool getBinaryDecision(std::string_view trueValues, std::string_view falseValues);
 
 
 	// -------TEMPLATED FUNCTIONS------------
 
-
-	//A basic boilerplate function to ignore a line in a general istream.
-	template<typename T>
-	void ignoreLine(std::basic_istream<T>& inStream = std::cin) {
-		inStream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-	}
 
 	//Boilerplate to get a value from the console with some input validation.
 	template<typename T, std::enable_if_t<dp::isExtractible<T>::value, bool> = true>
@@ -46,11 +38,11 @@ namespace IO {
 
 				if (std::cin.fail()) {	//If extraction fails
 					std::cin.clear();	//Reset our input stream flag
-					ignoreLine(std::cin);	//Ignore anything left in the buffer
+					std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 					std::cout << "Error: Please enter a valid " << typeid(T).name() << " value. \n";
 				}
 				else {
-					ignoreLine(std::cin);	//Ignore anything left in the buffer
+					std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');	//Ignore anything left in the buffer
 					return;
 				}
 			}

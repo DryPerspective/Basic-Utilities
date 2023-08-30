@@ -1,7 +1,6 @@
 #ifndef CONFIGREADER
 #define CONFIGREADER
 
-#pragma once
 
 /*
  ConfigReader - A class intended to automate the reading of configuration files and binding of variables to those values.
@@ -27,7 +26,7 @@
  * Must be extractable from an std::istream using operator>>, such that an extraction with types std::string >> T will evaluate correctly.
 */
 
-#include<iostream>
+
 #include<fstream>
 #include<string>
 #include<string_view>
@@ -38,6 +37,7 @@
 #include<type_traits>
 #include<stdexcept>
 #include<sstream>
+#include<filesystem>
 
 #include "Traits.h"
 
@@ -69,6 +69,7 @@
 			//Adds all data from a file to the m_values map. Separated from constructor for use with addFile function.
 			void addFileToMap(std::string_view fileName);
 
+
 			//Simple function to trim any leading or trailing whitespace from a string,
 			static std::string trim(const std::string& str, std::string_view whitespace = " \f\n\r\t\v");
 
@@ -77,7 +78,7 @@
 
 			//This function is called to read a string representing a number into a numerical type.
 			template<typename T>
-			T readNumerical(std::string_view valueInFile) const {
+			constexpr T readNumerical(std::string_view valueInFile) const {
 
 				//Then use from_chars to read it.
 				T output{};
@@ -139,15 +140,16 @@
 
 			//We only want construction when we have a specific file to open and read.
 			ConfigReader(std::string_view fileName, ConfigReader::flags inFlags = flags::noFlagsActive);
+			ConfigReader(std::filesystem::path file, ConfigReader::flags inFlags = flags::noFlagsActive);
 
-			//We want our destructor virtual in case of inheritance.
-			virtual ~ConfigReader() = default;
+			 ~ConfigReader() noexcept = default;
 
 			//Free up memory from the map for cases where we are done with the ConfigReader but it remains in scope
 			void close();
 
 			//Read an additional file and insert its data into the map.
 			void addFile(std::string_view fileName);
+			void addFile(std::filesystem::path fileName);
 
 
 			//This is the core function. It it the one-size-fits-all function to match a string which was in the file to some variable within the program.
@@ -244,6 +246,15 @@
 
 			}
 
+			//A more conventional method without an in-out parameter. Logically this can only apply to default constructble and copyable types, so we filter for those
+			//(and hope that RVO saves us a copy anyway)
+			template<typename T, std::enable_if_t<std::is_default_constructible_v<T> && std::is_copy_constructible_v<T>,bool> = true>
+			T readValue(std::string_view VarNameInFile) {
+				T result{};
+				readValue(VarNameInFile, result);
+				return result;
+			}
+
 
 
 			//A custom exception to handle errors specific to ConfigReader operation.
@@ -265,9 +276,7 @@
 
 	}
 
-	namespace IO {
-		using ConfigReader [[deprecated("ConfigReader in namespace IO is deprecated. Use namespace dp for ConfigReader")]] = dp::ConfigReader;
-	}
+
 
 
 

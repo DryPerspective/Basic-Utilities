@@ -1,6 +1,6 @@
 #include "SimpleTimer.h"
 
-namespace utility {
+namespace dp {
 
 	//Reset the clock
 	void SimpleTimer::reset() {

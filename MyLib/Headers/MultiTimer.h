@@ -1,13 +1,13 @@
 #ifndef MYLIBMULTITIMER
 #define MYLIBMULTITIMER
-#pragma once
+
 
 #include <chrono>
 #include <string>
 #include <map>
-#include <utility>	//For std::make_pair()
+#include <chrono>
 
-namespace utility {
+namespace dp {
 
 	/*
 	* The MultiTimer object uses the chrono header to track multiple different times. Each time is stored internally in a map and can be called up as needed.
