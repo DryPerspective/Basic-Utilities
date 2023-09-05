@@ -20,3 +20,5 @@ This section will document a brief overview of each part of the library and what
 - **IOFunctions** - Some basic boilerplate IO functions to read in data through the console with input validation.
 
 - **BigInt** - A class to represent an arbitrarily sized (signed) integer, complete with arithmetic, comparison, and bitwise operators. Allows up to `std::numeric_limits<std::size_t>::max()`-bit integers before functionality breaks down. On the author's machine this corresponds to being able to represent ~5.55 x 10<sup>18</sup> decimal digits, or a range of ± ~10<sup>10<sup>18.74</sup></sup>.
+
+- **Defer** - A utility to ~~rip off Go~~ defer execution of a particular statement or callable until the end of the current scope block. This can be done by constructing a named instance of class `dp::Defer` with a callable as the constructor argument. Or the icky but inarguably effect preprocessor macro `DEFER(...)` where the `...` is an expression or expressions to be executed at the end of the current scope block.
