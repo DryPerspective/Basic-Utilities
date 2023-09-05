@@ -33,7 +33,7 @@ namespace dp {
         Defer& operator=(const Defer&) = delete;
         Defer& operator=(Defer&&) = delete;
 
-        ~Defer() noexcept {
+        ~Defer() noexcept(noexcept(cleanup)) {
             std::invoke(cleanup);
         }
     };
