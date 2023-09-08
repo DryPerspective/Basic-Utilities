@@ -4,9 +4,9 @@
 
 namespace dp {
 
-	ConfigReader::ConfigReader(std::string_view fileName, ConfigReader::flags inFlags) : m_flags{ inFlags } {
-		addFileToMap(fileName);
-	}
+	//ConfigReader::ConfigReader(std::string_view fileName, ConfigReader::flags inFlags) : m_flags{ inFlags } {
+	//	addFileToMap(fileName);
+	//}
 
 	ConfigReader::ConfigReader(std::filesystem::path file, ConfigReader::flags inFlags) : m_flags{ inFlags } {
 		addFileToMap(file.string());
@@ -16,9 +16,9 @@ namespace dp {
 		m_values.clear();
 	}
 
-	void ConfigReader::addFile(std::string_view fileName) {
-		addFileToMap(fileName);
-	}
+	//void ConfigReader::addFile(std::string_view fileName) {
+	//	addFileToMap(fileName);
+	//}
 
 	void ConfigReader::addFile(std::filesystem::path file) {
 		addFileToMap(file.string());

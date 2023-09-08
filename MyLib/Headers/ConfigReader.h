@@ -139,7 +139,7 @@
 			ConfigReader(ConfigReader&&) noexcept = default;
 
 			//We only want construction when we have a specific file to open and read.
-			ConfigReader(std::string_view fileName, ConfigReader::flags inFlags = flags::noFlagsActive);
+			//ConfigReader(std::string_view fileName, ConfigReader::flags inFlags = flags::noFlagsActive);
 			ConfigReader(std::filesystem::path file, ConfigReader::flags inFlags = flags::noFlagsActive);
 
 			 ~ConfigReader() noexcept = default;
@@ -148,7 +148,7 @@
 			void close();
 
 			//Read an additional file and insert its data into the map.
-			void addFile(std::string_view fileName);
+			//void addFile(std::string_view fileName);
 			void addFile(std::filesystem::path fileName);
 
 

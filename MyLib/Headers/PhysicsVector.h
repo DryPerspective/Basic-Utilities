@@ -166,7 +166,7 @@ namespace dp {
 
 		//A general setter. 
 		constexpr auto setAt(std::size_t inIndex, double inValue) {
-			int_at(*this, inValue) = inValue;
+			int_at(*this, inIndex) = inValue;
 		}
 		/*
 		constexpr auto setX(const double XIn) {
