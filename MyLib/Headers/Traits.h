@@ -24,10 +24,10 @@ namespace dp {
 	//Some dependent true/false traits. To be used sparingly as tricking the compiler is rarely a good practice.
 	//However, in some examples it is required, e.g. wanting a static_assert to fail in the else branch of a constexpr if in compilers which haven't implemented CWG2518
 	template<typename T>
-	struct dependentFalse : public std::false_type {};
+	static constexpr inline bool dependentFalse = false;
 
 	template<typename T>
-	struct dependentTrue : public std::true_type {};
+	static constexpr inline bool dependentTrue = true;
 
 
 	//Traits to determine whether a type T supports extraction from a std::istream

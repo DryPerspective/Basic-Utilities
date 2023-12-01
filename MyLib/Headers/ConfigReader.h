@@ -151,6 +151,8 @@
 			//void addFile(std::string_view fileName);
 			void addFile(std::filesystem::path fileName);
 
+			std::string_view getValue(std::string_view key);
+
 
 			//This is the core function. It it the one-size-fits-all function to match a string which was in the file to some variable within the program.
 			//It has support for numeric types, strings, and PhysicsVector objects. As we're ostensibly reading from strings, exotic custom types can be read

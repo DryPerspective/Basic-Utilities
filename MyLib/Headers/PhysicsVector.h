@@ -34,16 +34,6 @@
 
 namespace dp {
 
-	//Forward declarations to resolve potential dependency issues.
-
-	template<std::size_t dim>
-	class PhysicsVector;
-
-	template<std::size_t dim>
-	bool readVector(std::string_view, PhysicsVector<dim>&);
-
-	template<std::size_t dim>
-	PhysicsVector<dim> readVector(std::string_view);
 
 	template <std::size_t dim>
 	class PhysicsVector
@@ -81,7 +71,7 @@ namespace dp {
 		//An internal "at" function (note, no bounds checking), used to cut down on code duplication by providing an underlying common function
 		//If we were in C++23 this would definitely be a public deducing this function
 		template <typename Self>
-		static auto& int_at(Self&& self, const std::size_t index) {
+		static auto&& int_at(Self&& self, const std::size_t index) {
 			return self.m_components[index];
 		}
 
@@ -111,13 +101,8 @@ namespace dp {
 		constexpr PhysicsVector<dim>& operator=(PhysicsVector<dim>&&) noexcept = default;
 
 
-		//Initialiser list constructor.
 		constexpr PhysicsVector(std::initializer_list<double> inList) : PhysicsVector<dim>() {
 			std::copy(inList.begin(), inList.end(), m_components.begin());
-		}
-
-		PhysicsVector(std::string_view inString) : PhysicsVector() {
-			readVector(inString, *this);
 		}
 
 		~PhysicsVector() noexcept = default;
@@ -140,6 +125,7 @@ namespace dp {
 		}
 
 		//And accessors for named dimensions.
+		//What I wouldn't do for deducing this...
 		constexpr decltype(auto) x() const {
 			return int_at(*this, 0);
 		}
@@ -168,17 +154,6 @@ namespace dp {
 		constexpr auto setAt(std::size_t inIndex, double inValue) {
 			int_at(*this, inIndex) = inValue;
 		}
-		/*
-		constexpr auto setX(const double XIn) {
-			setAt(0, XIn);
-		}
-		constexpr auto setY(const double YIn) {
-			setAt(1, YIn);
-		}
-		constexpr auto setZ(const double ZIn) {
-			setAt(2, ZIn);
-		}
-		*/
 
 		//Operator[] to round out accessing the data. Mirroring the std::vector, operator[] does no bounds checking.
 		constexpr decltype(auto) operator[](std::size_t index) {
@@ -200,30 +175,30 @@ namespace dp {
 		// Clunky friend declarations are clunky, but I think free functions work better than members in this case, particularly as it allows for a
 		// neater implementation for some of them.
 		// But, the snappiest implementation requires access to m_components, so we need to be friends.
-		template<std::size_t dim>
-		friend constexpr auto operator==(const PhysicsVector<dim>&, const PhysicsVector<dim>&) -> bool;
+		template<std::size_t N>
+		friend constexpr auto operator==(const PhysicsVector<N>&, const PhysicsVector<N>&) -> bool;
 
-		template<std::size_t dim>
-		friend constexpr auto operator!=(const PhysicsVector<dim>&, const PhysicsVector<dim>&) -> bool;
+		template<std::size_t N>
+		friend constexpr auto operator!=(const PhysicsVector<N>&, const PhysicsVector<N>&) -> bool;
 
-		template<std::size_t dim>
-		friend constexpr auto operator-(PhysicsVector<dim> inVector)->PhysicsVector<dim>;
+		template<std::size_t N>
+		friend constexpr auto operator-(PhysicsVector<N> inVector)->PhysicsVector<N>;
 
-		template<std::size_t dim>
-		friend constexpr auto operator+(PhysicsVector<dim> lhsVector, const PhysicsVector<dim>& rhsVector)->PhysicsVector<dim>;
+		template<std::size_t N>
+		friend constexpr auto operator+(PhysicsVector<N> lhsVector, const PhysicsVector<N>& rhsVector)->PhysicsVector<N>;
 
-		template<std::size_t dim>
-		friend constexpr auto operator-(PhysicsVector<dim> lhsVector, const PhysicsVector<dim>& rhsVector)->PhysicsVector<dim>;
+		template<std::size_t N>
+		friend constexpr auto operator-(PhysicsVector<N> lhsVector, const PhysicsVector<N>& rhsVector)->PhysicsVector<N>;
 
-		template<std::size_t dim>
-		friend constexpr auto operator+=(PhysicsVector<dim>& lhsVector, const PhysicsVector<dim>& rhsVector)->PhysicsVector<dim>&;
+		template<std::size_t N>
+		friend constexpr auto operator+=(PhysicsVector<N>& lhsVector, const PhysicsVector<N>& rhsVector)->PhysicsVector<N>&;
 
-		template<std::size_t dim>
-		friend constexpr auto operator-=(PhysicsVector<dim>& lhsVector, const PhysicsVector<dim>& rhsVector)->PhysicsVector<dim>&;
+		template<std::size_t N>
+		friend constexpr auto operator-=(PhysicsVector<N>& lhsVector, const PhysicsVector<N>& rhsVector)->PhysicsVector<N>&;
 
 		//As above, operator<< calls the print() function.
-		template<std::size_t dim>
-		friend constexpr auto operator<<(std::ostream& out, const PhysicsVector<dim>& inVector)->std::ostream&;
+		template<std::size_t N>
+		friend constexpr auto operator<<(std::ostream& out, const PhysicsVector<N>& inVector)->std::ostream&;
 
 
 		/*
@@ -390,66 +365,6 @@ namespace dp {
 	template<typename T>
 	constexpr inline bool is_PhysicsVector_v{ is_PhysicsVector<T>::value };
 
-
-
-
-	//This function is intended to read and construct a PhysicsVector object from a std::string
-	//This version is very generalised and as such is a little heavy in performance.
-	//Specific needs in specific projects can be met by providing a specialisation of this template which is specific to that project.
-	//This function returns true if the vector was read in correctly, and false otherwise. In the event of an invalid call, it sets the input vector to {0,0,...0};
-	template<std::size_t dim>
-	bool readVector(std::string_view inputString, dp::PhysicsVector<dim>& inVector) {
-		//First, validate that the string is of the correct format (X,Y,Z)
-		std::regex vectorReg{ R"([\{\[\(<]?(\d*\.?\d*\,){0,}\d+\.?\d*[\}\]\)>]?)" };
-		//Optionally one of [{(<, then any amount of (0-9, optionally with a . and another [0-9] then ,), then another potentially decimal number and optionally a closing bracket
-		if (!std::regex_match(std::string(inputString), vectorReg)) {
-			inVector = PhysicsVector<dim>{};
-			return false;
-		}
-		//We delimit around the comma to reach our individual numbers.
-		//As we cannot easily insert our dim variable into the regex, the simplesy way to check we have the right number of dimensions is counting the number of commas
-		auto numberOfCommas{ std::count(inputString.begin(), inputString.end(),',') };
-		if (numberOfCommas != dim - 1) {
-			inVector = PhysicsVector<dim>{};
-			return false;
-		}
-
-		//If the vector is surrounded by brackets, we need to trim them off. We account for all common bracket styles.
-		std::string brackets{ "{}[]()<>" };
-		if (std::any_of(brackets.begin(), brackets.end(), [inputString](const char& x) {return x == inputString[0]; })) inputString.remove_prefix(1);
-		if (std::any_of(brackets.begin(), brackets.end(), [inputString](const char& x) {return x == inputString[inputString.length() - 1]; })) inputString.remove_suffix(1);
-
-		//If we get this far, we have a good degree of confidence that our vector is of the correct format and that external brackets have been trimmed.
-		//All that remains is to separate out the numbers, read them, and write them to a PhysicsVector object.
-		//This is trivial for 1D vectors, and in this case our entire inputString string should just be the number we want.
-
-		auto parseTerm = [](std::string_view input) -> double {
-			double output;
-			std::from_chars(input.data(), input.data() + input.length(), output);
-			return output;
-		};
-
-		if constexpr (dim == 1) {
-			inVector.setAt(0, parseTerm(inputString));
-		}
-		//Otherwise we just read every number up to each comma, and set the vector accordingly
-		else {
-			for (std::size_t i = 0; i < dim; ++i) {
-				auto firstComma{ inputString.find_first_of(',') };
-				std::string_view firstTerm{ inputString.substr(0,firstComma) };
-				inputString.remove_prefix(firstComma + 1);
-				inVector.setAt(i, parseTerm(firstTerm));
-			}
-		}
-		return true;
-	}
-
-	template<std::size_t dim>
-	PhysicsVector<dim> readVector(std::string_view inString) {
-		PhysicsVector<dim> out{};
-		readVector(inString, out);
-		return out;
-	}
 
 	template<std::size_t dim>
 	constexpr auto swap(PhysicsVector<dim>& lhs, PhysicsVector<dim>& rhs) noexcept {

@@ -84,6 +84,10 @@ namespace dp {
 		}
 	}
 
+	std::string_view ConfigReader::getValue(std::string_view key) {
+		return m_values.at(std::string{ key });
+	}
+
 
 
 
