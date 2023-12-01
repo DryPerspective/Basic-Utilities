@@ -81,7 +81,7 @@ namespace dp {
 		//An internal "at" function (note, no bounds checking), used to cut down on code duplication by providing an underlying common function
 		//If we were in C++23 this would definitely be a public deducing this function
 		template <typename Self>
-		static auto& int_at(Self& self, const std::size_t index) {
+		static auto& int_at(Self&& self, const std::size_t index) {
 			return self.m_components[index];
 		}
 

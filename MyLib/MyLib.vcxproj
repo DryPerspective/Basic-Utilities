@@ -21,6 +21,8 @@
   <ItemGroup>
     <ClInclude Include="Headers\BigInt.h" />
     <ClInclude Include="Headers\ConfigReader.h" />
+    <ClInclude Include="Headers\Coroutine.h" />
+    <ClInclude Include="Headers\Defer.h" />
     <ClInclude Include="Headers\IOFunctions.h" />
     <ClInclude Include="Headers\MultiTimer.h" />
     <ClInclude Include="Headers\PhysicsVector.h" />

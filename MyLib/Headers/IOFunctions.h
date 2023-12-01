@@ -13,7 +13,7 @@
 
 #include "Traits.h"
 
-namespace IO {
+namespace dp {
 
 	//A little crude, but this will read console input for a simple bool decision.
 	bool getYesNo();
@@ -29,26 +29,23 @@ namespace IO {
 	//Boilerplate to get a value from the console with some input validation.
 	template<typename T, std::enable_if_t<dp::isExtractible<T>::value, bool> = true>
 	void getFromConsole(T& inValue) {
-		if constexpr (std::is_same_v<T, bool>) {
-			inValue = getYesNo();
-		}
-		else {
-			while (true) {
-				std::cin >> inValue;
 
-				if (std::cin.fail()) {	//If extraction fails
-					std::cin.clear();	//Reset our input stream flag
-					std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-					std::cout << "Error: Please enter a valid " << typeid(T).name() << " value. \n";
-				}
-				else {
-					std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');	//Ignore anything left in the buffer
-					return;
-				}
+		while (true) {
+			std::cin >> inValue;
+
+			if (std::cin.fail()) {	//If extraction fails
+				std::cin.clear();	//Reset our input stream flag
+				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+				//Would be nice if we had a better way which was portable. Alas, no __PRETTY_FUNCTION__ hacks or reflection.
+				std::cout << "Error: Please enter a valid " << typeid(T).name() << " value. \n";
+			}
+			else {
+				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');	//Ignore anything left in the buffer
+				return;
 			}
 		}
+		
 	}
-
 	//Same as above except for cases of returning the input value rather than passing it in.
 	template<typename T>
 	T getFromConsole() {

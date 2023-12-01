@@ -2,7 +2,7 @@
 
 #include "IOFunctions.h"
 
-namespace IO {
+namespace dp {
 
 	bool getYesNo() {
 		char input;

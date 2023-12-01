@@ -4,20 +4,55 @@
 #include <type_traits>
 #include <utility>
 #include <functional>
+#include <tuple>
 
 namespace dp {
-    template<typename Callable, std::enable_if_t<std::is_invocable_v<Callable>, bool> = true>
+
+    template<typename Callable, typename... Args>
     class Defer {
+
+        using cleanup_type = std::conditional_t<std::is_function_v<Callable>, std::add_pointer_t<Callable>, Callable>;
+
+        cleanup_type cleanup;
+        std::tuple<Args...> call_args;
+
+    public:
+        //Template for forwarding references
+        template<typename T, typename... TArgs,
+        std::enable_if_t<std::is_constructible_v<std::tuple<Args...>,TArgs...>, bool> = true,
+        std::enable_if_t<std::is_convertible_v<T, Callable>, bool> = true,
+        std::enable_if_t<std::is_invocable_v<Callable, Args...>, bool> = true>
+        Defer(T&& t, TArgs&&... args) : cleanup{ std::forward<T>(t) }, call_args{ std::make_tuple(std::forward<TArgs...>(args...)) } {}
+
+        //By definition, this is a scope-local construct. So moving/copying it makes no sense.
+        Defer(const Defer&) = delete;
+        Defer(Defer&&) = delete;
+        Defer& operator=(const Defer&) = delete;
+        Defer& operator=(Defer&&) = delete;
+
+        ~Defer() noexcept(noexcept(cleanup)) {
+            std::apply(std::move(cleanup), std::move(call_args));
+        }
+
+    };
+    template<typename T, typename... Args>
+    Defer(T, Args...) -> Defer<T, Args...>;
+
+
+    template<typename Callable>
+    class Defer<Callable> {
 
         using cleanup_type = std::conditional_t<std::is_function_v<Callable>, std::add_pointer_t<Callable>, Callable>;
 
         cleanup_type cleanup;
 
     public:
-        Defer(Callable&& inFunc) : cleanup{ std::forward<decltype(inFunc)>(inFunc) } {}
+        template<typename F, 
+            std::enable_if_t<std::is_convertible_v<F,Callable>,bool> = true,
+            std::enable_if_t<std::is_invocable_v<F>, bool> = true>
+        Defer(F&& inFunc) : cleanup{ std::forward<F>(inFunc) } {}
 
         //By definition, this is a scope-local construct. So moving/copying it makes no sense.
-        Defer() = delete;
         Defer(const Defer&) = delete;
         Defer(Defer&&) = delete;
         Defer& operator=(const Defer&) = delete;
@@ -27,7 +62,8 @@ namespace dp {
             std::invoke(cleanup);
         }
     };
-
+    template<typename T>
+    Defer(T) -> Defer<T>;
 }
 
 /*

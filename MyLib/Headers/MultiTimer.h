@@ -2,8 +2,6 @@
 #define MYLIBMULTITIMER
 
 
-#include <chrono>
-#include <string>
 #include <map>
 #include <chrono>
 
