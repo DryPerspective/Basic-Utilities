@@ -11,7 +11,7 @@ namespace dp {
     template<typename Callable, typename... Args>
     class Defer {
 
-        using cleanup_type = std::conditional_t<std::is_function_v<Callable>, std::add_pointer_t<Callable>, Callable>;
+        using cleanup_type = std::decay_t<Callable>; //Function types (not function pointers) can't be stored but can still be "passed" to the ctor
 
         cleanup_type cleanup;
         std::tuple<Args...> call_args;
@@ -19,9 +19,9 @@ namespace dp {
     public:
         //Template for forwarding references
         template<typename T, typename... TArgs,
-        std::enable_if_t<std::is_constructible_v<std::tuple<Args...>,TArgs...>, bool> = true,
-        std::enable_if_t<std::is_convertible_v<T, Callable>, bool> = true,
-        std::enable_if_t<std::is_invocable_v<Callable, Args...>, bool> = true>
+        std::enable_if_t<std::is_constructible_v<std::tuple<Args...>,TArgs...> &&
+                         std::is_convertible_v<T, Callable> &&
+                         std::is_invocable_v<Callable, Args...>, bool> = true>
         Defer(T&& t, TArgs&&... args) : cleanup{ std::forward<T>(t) }, call_args{ std::make_tuple(std::forward<TArgs...>(args...)) } {}
 
         //By definition, this is a scope-local construct. So moving/copying it makes no sense.
@@ -42,14 +42,14 @@ namespace dp {
     template<typename Callable>
     class Defer<Callable> {
 
-        using cleanup_type = std::conditional_t<std::is_function_v<Callable>, std::add_pointer_t<Callable>, Callable>;
+        using cleanup_type = std::decay_t<Callable>;
 
         cleanup_type cleanup;
 
     public:
         template<typename F, 
-            std::enable_if_t<std::is_convertible_v<F,Callable>,bool> = true,
-            std::enable_if_t<std::is_invocable_v<F>, bool> = true>
+            std::enable_if_t<std::is_convertible_v<F,Callable> &&
+                             std::is_invocable_v<F>, bool> = true>
         Defer(F&& inFunc) : cleanup{ std::forward<F>(inFunc) } {}
 
         //By definition, this is a scope-local construct. So moving/copying it makes no sense.
